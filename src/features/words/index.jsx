@@ -6,7 +6,7 @@ import { diffDays, todayStr } from '../../lib/dates';
 import { startTimer } from '../../lib/studylog';
 import { BASE, LEVELS, ORDERS, allWords, hasKanji, idsInOrder, unsorted, newToday, parsePaste, quizPick, readingChoices, splitExample } from './words';
 import { Study } from './Learn';
-import { paceNeed } from './learn';
+import { askReading, meaningOnly, paceNeed } from './learn';
 import { N1Quiz } from './N1Quiz';
 import { LeechStudy, ReviewPlan, capOf } from './Leech';
 import './words.css';
@@ -214,12 +214,15 @@ function Sort({ onDone }) {
     return () => timer.current?.finish();
   }, []);
   const w = list[pos];
-  const pick = (known) => {
-    if (!w) return;
-    if (known) save('words', w.id, { skip: 1, t: today, d: '9999-12-31', i: 999, f: today });
+  // k: know 알아요(다시 안 나옴) · mean 뜻만 알아요(내일부터 읽기 복습) · no 몰라요(새 단어 줄 맨 앞)
+  const canMean = w && askReading(w);
+  const pick = (k) => {
+    if (!w || (k === 'mean' && !canMean)) return;
+    if (k === 'know') save('words', w.id, () => ({ skip: 1, t: today, d: '9999-12-31', i: 999, f: today }));
+    else if (k === 'mean') save('words', w.id, () => meaningOnly(today));
     else save('words', w.id, { pri: 1 });
-    timer.current?.add({ n: 1, ok: known ? 1 : 0, learned: known ? 1 : 0 });
-    setHist((h) => [...h, { w, known }]);
+    timer.current?.add({ n: 1, ok: k === 'no' ? 0 : 1, learned: k === 'know' ? 1 : 0 });
+    setHist((h) => [...h, { w, k }]);
     setPos((p) => p + 1);
   };
   const undo = () => {
@@ -231,15 +234,17 @@ function Sort({ onDone }) {
   };
   useEffect(() => {
     const key = (e) => {
-      if (e.key === 'ArrowLeft' || e.key === '1') pick(true);
-      else if (e.key === 'ArrowRight' || e.key === '2') pick(false);
+      if (e.key === 'ArrowLeft' || e.key === '1') pick('know');
+      else if (e.key === 'ArrowDown' || e.key === '2') pick('mean');
+      else if (e.key === 'ArrowRight' || e.key === '3') pick('no');
       else if (e.key === 'Backspace' || (e.key === 'z' && (e.metaKey || e.ctrlKey))) undo();
       else if (e.key === 'Escape') onDone();
     };
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   });
-  const known = hist.filter((h) => h.known).length;
+  const cnt = (k) => hist.filter((h) => h.k === k).length;
+  const SORT_LABEL = { know: '알아요', mean: '뜻만 알아요', no: '몰라요' };
   const last = hist.at(-1);
   if (!w) {
     return (
@@ -247,8 +252,9 @@ function Sort({ onDone }) {
         <section className="card wd-end">
           <b className="wd-end__t">{hist.length}개 걸렀어요</b>
           <div className="wd-today__nums">
-            <div><b className="num wd-c-due">{known}</b><small>알아요 · 다시 안 나옴</small></div>
-            <div><b className="num wd-c-new">{hist.length - known}</b><small>몰라요 · 새 단어로 먼저</small></div>
+            <div><b className="num wd-c-due">{cnt('know')}</b><small>알아요 · 다시 안 나옴</small></div>
+            <div><b className="num">{cnt('mean')}</b><small>뜻만 알아요 · 내일부터 읽기 복습</small></div>
+            <div><b className="num wd-c-new">{cnt('no')}</b><small>몰라요 · 새 단어로 먼저</small></div>
           </div>
           <div className="row">
             {unsorted(words, cards).length > 0 && <button type="button" className="btn btn--pri" onClick={() => onDone('sort')}>{SORT_N}개 더</button>}
@@ -268,20 +274,21 @@ function Sort({ onDone }) {
       <div className="card wd-card wd-sort">
         <div className="wd-card__tag"><span className="wd-pill">{w.lv}</span></div>
         <div className="wd-card__w" lang="ja">{w.w}</div>
-        <p className="sub">뜻과 읽기를 바로 떠올릴 수 있으면 '알아요'</p>
+        <p className="sub">뜻과 읽기를 바로 떠올릴 수 있으면 '알아요', 뜻은 아는데 읽는 법이 헷갈리면 '뜻만 알아요'</p>
       </div>
       <div className="wd-sort__last" aria-live="polite">
         {last ? (
           <>
-            <span className={last.known ? 'wd-ok' : 'wd-ng'}>{last.known ? '알아요' : '몰라요'}</span>
+            <span className={last.k === 'know' ? 'wd-ok' : last.k === 'mean' ? 'wd-mid' : 'wd-ng'}>{SORT_LABEL[last.k]}</span>
             <b lang="ja">{last.w.w}</b><span lang="ja" className="sub">{last.w.r}</span><span className="wd-sort__m">{last.w.m}</span>
             <button type="button" className="wd-x" onClick={undo}>되돌리기</button>
           </>
         ) : <span className="sub">누른 단어의 뜻이 여기 나와요. 틀렸으면 되돌리기</span>}
       </div>
       <div className="wd-grades wd-sort__btns">
-        <button type="button" className="wd-g wd-g--3" onClick={() => pick(true)}><b>알아요</b><kbd>←</kbd></button>
-        <button type="button" className="wd-g wd-g--1" onClick={() => pick(false)}><b>몰라요</b><kbd>→</kbd></button>
+        <button type="button" className="wd-g wd-g--3" onClick={() => pick('know')}><b>알아요</b><kbd>1</kbd></button>
+        <button type="button" className="wd-g wd-g--2" onClick={() => pick('mean')} disabled={!canMean} title={canMean ? '' : '한자 없는 단어라 읽기 복습이 없어요'}><b>뜻만 알아요</b><small>읽는 법 모름</small><kbd>2</kbd></button>
+        <button type="button" className="wd-g wd-g--1" onClick={() => pick('no')}><b>몰라요</b><kbd>3</kbd></button>
       </div>
     </div>
   );
