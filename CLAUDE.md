@@ -19,7 +19,7 @@
 - `useData(묶음)` → `{ id: 기록 }`, `save(묶음, id, patch)`, `remove(묶음, id)` (src/lib/store.js). localStorage 직접 쓰지 말 것 (기기별 화면 기억만 `jlpt:` 접두어)
 - 묶음: `words` 단어 복습 상태 · `own` 교재에서 넣은 단어 · `grammar` 문법 · `drill` 독해·청해 · `prefs` 설정(id 'main')
 - 기록마다 `u`(고친 시각)가 자동으로 붙고 기기 사이에선 u가 나중인 쪽이 이김. 서버 표 `jlpt_data`(SQL은 store.js `CLOUD_SQL`)
-- 공부 시간: `studylog.js` `logStudy({ part, sec, n, ok, learned, what })` · `startTimer(part, what)` → 서버 표 `study_log` → 기록 앱이 읽어서 보여 줌
+- 공부 시간: `studylog.js` `logStudy({ part, sec, n, ok, learned, what })` · `startTimer(part, what, { idleMs })` → `{ add, finish, stop }` · React는 `useStudyTimer(part, what)` → `{ sec, paused, add, finish }`. 이 기기 `jlpt:study`·안 올린 것 `jlpt:study-q` → 서버 표 `study_log`(SQL `STUDY_SQL`, Girok sync.js 와 같게) → 기록 앱이 읽어서 보여 줌. 화면 `features/stats`(목표 `prefs.main.goalMin`)
 - **교재(다락원 한권으로 끝내기 N1) 내용은 저장소에 넣지 말 것** (공개 저장소). 교재에서 옮긴 단어·문제는 사용자 기록(`own` 등)으로만
 
 ## 문법 퀴즈 (`src/features/grammar/`)

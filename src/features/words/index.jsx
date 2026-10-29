@@ -161,7 +161,7 @@ function Session({ onDone }) {
   };
   const knowIt = () => {
     save('words', id, { skip: 1, t: today, d: '9999-12-31', i: 999, f: today });
-    timer.current?.add({ n: 1, ok: 1 });
+    timer.current?.add({ n: 1, ok: 1, learned: 1 });
     setOpen(false);
     setPos((p) => p + 1);
   };
