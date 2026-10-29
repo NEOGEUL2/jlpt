@@ -2,23 +2,29 @@
 import { save, useData } from '../../lib/store';
 import { EXAM_DATE, grade, queue } from '../../lib/srs';
 import { todayStr } from '../../lib/dates';
+import { useStudyTimer } from '../../lib/studylog';
 import Quiz from './Quiz';
 import './grammar.css';
 
-// 공부 시간 기록은 studylog.js 가 생기면 씀 (없어도 화면은 그대로)
-const studylog = Object.values(import.meta.glob('../../lib/studylog.js', { eager: true }))[0];
+const KNOWN = 7; // 간격 7일 이상 = 익힘 (srs maturity 와 같은 기준)
 
 export default function Grammar() {
   const cards = useData('grammar');
+  const timer = useStudyTimer('grammar', '문법 퀴즈');
   return (
     <Quiz
       cards={cards}
-      setCard={(id, next) => save('grammar', id, next)}
+      setCard={(id, next) => {
+        // 익힘으로 막 넘어간 문법 → 기록 앱 일지에 '새로 익힘'
+        if (next.i >= KNOWN && !((cards[id]?.i || 0) >= KNOWN)) timer.add({ learned: 1 });
+        save('grammar', id, next);
+      }}
       grade={grade}
       queue={queue}
       today={todayStr()}
       exam={EXAM_DATE}
-      onLog={(x) => studylog?.logStudy?.(x)}
+      onStep={(id, ok) => timer.add({ n: 1, ok: ok ? 1 : 0 })}
+      onLog={() => timer.finish()}
     />
   );
 }

@@ -1,5 +1,6 @@
 // 문법 퀴즈 화면 (듀오링고·Anki 식). 저장은 밖에서 받음:
-//  cards { id: 카드상태 } · setCard(id, next) · grade/queue (srs.js) · today·exam 'YYYY-MM-DD' · onLog({part,sec,n,ok,what})
+//  cards { id: 카드상태 } · setCard(id, next) · grade/queue (srs.js) · today·exam 'YYYY-MM-DD'
+//  onStep(id, ok) 한 문제 풀 때마다 (처음 푼 것만) · onLog({part,sec,n,ok,what}) 한 판 끝
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { GRAMMAR } from './data.js';
 import { KINDS, byId, gradeOf, makeRound, shuffle, todayIds, weakList } from './quiz.js';
@@ -14,7 +15,7 @@ const loadKinds = () => {
   return ['fill', 'mean'];
 };
 
-export default function GrammarQuiz({ cards = {}, setCard, grade, queue, today, exam, onLog }) {
+export default function GrammarQuiz({ cards = {}, setCard, grade, queue, today, exam, onStep, onLog }) {
   const [round, setRound] = useState(null); // { qs, title }
   const [view, setView] = useState('home'); // home | list
   const [kinds, setKinds] = useState(loadKinds);
@@ -34,7 +35,10 @@ export default function GrammarQuiz({ cards = {}, setCard, grade, queue, today, 
     return (
       <Play
         round={round}
-        onAnswer={(id, ok, ms) => setCard?.(id, grade(cards[id], gradeOf(ok, ms), today, exam))}
+        onAnswer={(id, ok, ms) => {
+          setCard?.(id, grade(cards[id], gradeOf(ok, ms), today, exam));
+          onStep?.(id, ok);
+        }}
         onEnd={(r) => {
           onLog?.({ part: 'grammar', sec: Math.round(r.ms / 1000), n: r.n, ok: r.ok, what: round.title });
           setRound(null);
