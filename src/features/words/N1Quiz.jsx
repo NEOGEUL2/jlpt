@@ -124,7 +124,7 @@ export function N1Quiz({ pool, onDone }) {
             <b className={mine === q.answer ? 'wd-ok' : 'wd-ng'}>{mine === q.answer ? '맞았어요' : '아쉬워요'}</b>
             <span><b lang="ja">{q.word.w}</b> <span lang="ja">（{q.word.r}）</span> {q.word.m}{q.syn && <> ≒ <b lang="ja">{q.syn.w}</b> {q.syn.m}</>}</span>
             {q.word.k && <span className="sub">{q.word.k}</span>}
-            <KanjiParts w={q.word.w} />
+            <KanjiParts w={q.word.w} r={q.word.r} />
           </div>
         )}
       </div>

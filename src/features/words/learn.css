@@ -76,3 +76,41 @@
   .ln-sib li .sub { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .ln-info { animation: none; } }
+
+/* 앞으로 7일 복습 (Leech.jsx ReviewPlan) */
+.rp-chart { display: grid; gap: 4px; }
+.rp-plot { position: relative; display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; align-items: end; border-bottom: 1px solid var(--line); }
+.rp-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; min-width: 0; }
+.rp-n { font-size: 11.5px; color: var(--sub); }
+.rp-bar { display: block; width: min(28px, 70%); border-radius: 4px 4px 0 0; background: var(--grn); }
+.rp-bar.is-over { background: var(--org); }
+.rp-cap { position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--sub); opacity: 0.7; pointer-events: none; }
+.rp-cap span { position: absolute; right: 0; top: -15px; font-size: 10.5px; color: var(--sub); background: var(--surf); padding: 0 4px; }
+.rp-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; }
+.rp-days small { font-size: 11.5px; color: var(--sub); }
+.rp-days small.is-today { color: var(--ink); font-weight: 700; }
+.rp-leech { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.rp-leech > div { display: grid; gap: 1px; }
+.rp-leech small { font-size: 12px; }
+
+/* 안 외워지는 단어 (LeechStudy) */
+.ln-ph--leech { background: color-mix(in srgb, var(--org) 18%, transparent); color: var(--org); }
+.ln-memo { margin: 0; display: grid; gap: 2px; max-width: 30em; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--org) 10%, transparent); font-size: 14px; }
+.ln-memo small { font-size: 11px; color: var(--org); font-weight: 700; }
+.lc-pair { width: 100%; max-width: 30em; display: grid; gap: 4px; text-align: left; }
+.lc-pair ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.lc-pair li { display: grid; grid-template-columns: minmax(70px, auto) minmax(70px, auto) 1fr; gap: 10px; align-items: baseline; padding: 7px 10px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); font-size: 14px; }
+.lc-pair li.is-me { border-color: var(--grn); }
+.lc-pair li b { font-size: 17px; }
+.lc-memo { width: 100%; max-width: 30em; display: grid; gap: 4px; text-align: left; }
+.lc-memo textarea { font: inherit; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); resize: vertical; }
+.lc-memo textarea:focus { outline: none; border-color: var(--org); }
+
+/* 장음 · 한자마다 읽는 소리 */
+mark.ln-long { background: none; color: inherit; text-decoration: underline 2.5px var(--org); text-underline-offset: 5px; }
+.ln-rp__dot { font-style: normal; color: var(--sub); opacity: 0.6; margin: 0 1px; }
+.ln-kj__here { font-size: 16px; font-weight: 700; color: var(--ink); }
+.ln-kj__here small { font: 600 11px var(--kr); color: var(--sub); }
+.ln-kj__here.is-long small { color: var(--org); }
+.ln-kj__c em.is-warn { color: var(--red); }
+.ln-kj__oth { font-size: 11px; color: var(--sub); }

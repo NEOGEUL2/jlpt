@@ -3,6 +3,7 @@
 //  · 확인: 한자 단어는 읽기를 직접 입력(로마자도 됨) + 뜻 4개 중 고르기 → 몰랐음/알았음 두 버튼
 //  · 카드 상태는 srs.js 와 같은 words 묶음. 배우는 중이면 ls(단계)·la(다시 볼 시각 ms) 가 더 붙음
 import { grade } from '../../lib/srs';
+import { addDays, diffDays, parse, ymd } from '../../lib/dates';
 import { hasKanji, idsInOrder, isKatakana } from './words';
 
 export const BATCH = 5;
@@ -125,16 +126,47 @@ export function meaningChoices(word, pool, rnd = Math.random) {
 // 배우는 중(ls)인데 아직 다시 볼 시각(la)이 안 된 카드
 export const waiting = (c, now) => !!c?.ls && (c.la || 0) > now;
 
-// 복습할 것: 날짜가 된 카드(배우는 중이면 시각도 된 것). 배우는 중 먼저, 그다음 오래된 날짜 순
-export function reviewIds(ids, cards, today, now) {
+// 하루 복습 상한 고르기 (0 = 제한 없음). 넘친 건 날짜를 바꾸지 않고 그대로 두면 다음 날 먼저 나옴
+export const REV_CAPS = [100, 150, 200, 300, 0];
+export const REV_CAP = 200;
+// 오늘 이미 복습한 수 (오늘 처음 배운 단어는 빼고)
+export const reviewedToday = (cards, today) => Object.values(cards).filter((c) => c?.t === today && c.f !== today && !c.skip).length;
+
+// 복습할 것: 날짜가 된 카드(배우는 중이면 시각도 된 것)
+//  · 순서: 배우는 중 → 간격 짧은 것(잊기 쉬운 것) → 오래 밀린 것
+//  · cap(하루 상한)이 있으면 배우는 중이 아닌 복습은 (상한 - 오늘 한 수) 개까지만
+export function reviewIds(ids, cards, today, now, cap = 0) {
   const out = [];
   for (const id of ids) {
     const c = cards[id];
     if (!c?.t || c.skip || c.d > today || waiting(c, now)) continue;
     out.push(id);
   }
-  return out.sort((a, b) => (cards[b].ls ? 1 : 0) - (cards[a].ls ? 1 : 0) || cards[a].d.localeCompare(cards[b].d));
+  out.sort((a, b) => (cards[b].ls ? 1 : 0) - (cards[a].ls ? 1 : 0) || (cards[a].i || 0) - (cards[b].i || 0) || cards[a].d.localeCompare(cards[b].d));
+  if (!cap) return out;
+  const room = Math.max(0, cap - reviewedToday(cards, today));
+  const ls = out.filter((id) => cards[id].ls);
+  return [...ls, ...out.filter((id) => !cards[id].ls).slice(0, room)];
 }
+
+// 앞으로 days 일 복습 수 [{ d, n }] — 오늘 칸엔 밀린 것·배우는 중도 들어감
+export function forecast(cards, today, days = 7) {
+  const out = Array.from({ length: days }, (_, k) => ({ d: ymd(addDays(parse(today), k)), n: 0 }));
+  const last = out[days - 1].d;
+  for (const c of Object.values(cards)) {
+    if (!c?.t || c.skip || !c.d || c.d > last) continue;
+    const k = c.d <= today ? 0 : diffDays(today, c.d);
+    out[k].n += 1;
+  }
+  return out;
+}
+
+/* ───────── 안 외워지는 단어 ───────── */
+// 4번 넘게 틀렸고 아직 간격이 3주가 안 된 것. 3주 넘게 기억하면 저절로 빠짐
+export const LEECH_L = 4;
+export const isLeech = (c) => !!c?.t && !c.skip && (c.l || 0) >= LEECH_L && (c.i || 0) < 21;
+// 뜻 고르기에서 잘못 고른 단어 기억 (헷갈리는 짝, 최근 3개)
+export const addConfused = (c, otherId) => ({ ...(c || {}), cf: [otherId, ...((c?.cf || []).filter((x) => x !== otherId))].slice(0, 3) });
 // 아직 기다리는 배우는 중 카드 수와 가장 빠른 시각
 export function waitingInfo(ids, cards, now) {
   let n = 0;
@@ -167,18 +199,28 @@ export function learned(card, today, now) {
   return { ...(card || {}), pri: undefined, t: today, f: card?.f || today, d: today, i: 0, n: 0, l: 0, e: 250, ls: 1, la: now + RELEARN_MIN * 60e3 };
 }
 
-// 복습 결과 (ok: 알았음/몰랐음). 배우는 중 카드는 맞히면 졸업(내일), 틀리면 10분 뒤 또
+// 복습 결과 (ok: 알았음/몰랐음)
+//  · 배우는 중 카드: 맞히면 졸업 — 처음 배운 것은 내일, 복습에서 틀렸던 것은 원래 간격(pi)의 절반 뒤 (WaniKani 처럼 처음부터 X)
+//  · 틀리면 오늘 안에 10분 뒤 한 번 더 (배우는 중으로 돌아감, 원래 간격은 pi 에 기억)
+//  · 기억 이야기(mn)·헷갈리는 짝(cf)은 그대로 둠
 export function answer(card, ok, today, now, exam) {
   const c = card || {};
+  const keep = { f: c.f, mn: c.mn, cf: c.cf };
   if (c.ls) {
     if (!ok) return { ...c, l: (c.l || 0) + 1, la: now + RELEARN_MIN * 60e3, t: today };
     const g = grade({ e: c.e }, 3, today, exam); // 처음 배운 것처럼: 1일 뒤
-    return { ...g, f: c.f, l: c.l || 0, n: (c.n || 0) + 1 };
+    const out = { ...g, ...keep, l: c.l || 0, n: (c.n || 0) + 1 };
+    if (c.pi > 1) {
+      let i = Math.max(1, Math.floor(c.pi / 2));
+      const left = exam ? diffDays(today, exam) - 1 : 0;
+      if (left >= 1) i = Math.min(i, Math.max(1, Math.ceil(left / 2)));
+      Object.assign(out, { i, d: ymd(addDays(parse(today), i)) });
+    }
+    return out;
   }
   const g = grade(c, ok ? 3 : 1, today, exam);
-  const next = { ...g, f: c.f };
-  // 틀리면 오늘 안에 10분 뒤 한 번 더 (배우는 중으로 돌아감)
-  if (!ok) Object.assign(next, { d: today, ls: 1, la: now + RELEARN_MIN * 60e3 });
+  const next = { ...g, ...keep };
+  if (!ok) Object.assign(next, { d: today, ls: 1, la: now + RELEARN_MIN * 60e3, pi: c.i || 0 });
   return next;
 }
 

@@ -7,6 +7,7 @@ import { startTimer } from '../../lib/studylog';
 import { BASE, LEVELS, allWords, hasKanji, idsInOrder, unsorted, newToday, parsePaste, quizPick, readingChoices, splitExample } from './words';
 import { Study } from './Learn';
 import { N1Quiz } from './N1Quiz';
+import { LeechStudy, ReviewPlan, capOf } from './Leech';
 import './words.css';
 
 const NEW_OPTS = [20, 30, 50, 100, 150, 200];
@@ -37,6 +38,7 @@ export default function Words() {
   };
   if (mode === 'cards') return <StudyRoute onDone={() => done()} />;
   if (mode === 'n1') return <N1Route onDone={() => done()} />;
+  if (mode === 'leech') return <LeechRoute onDone={() => done()} />;
   if (mode === 'sort') return <Sort key={round} onDone={done} />;
   if (mode === 'quiz') return <Quiz onDone={done} />;
   if (mode === 'add') return <AddWords onDone={done} />;
@@ -87,6 +89,8 @@ function Home({ go }) {
           <button type="button" className="btn" onClick={() => go('n1')}>N1 모양 문제 10개</button>
         </div>
       </section>
+
+      <ReviewPlan cards={cards} prefs={prefs} onCap={(n) => setPrefs({ revCap: n })} go={go} />
 
       <Levels prefs={prefs} cards={cards} />
 
@@ -159,11 +163,15 @@ function StudyRoute({ onDone }) {
   const words = useWords();
   const pool = useWords(true);
   const prefs = usePrefs();
-  return <Study words={words} pool={pool} newPerDay={prefs.newToday} autoSpeak={prefs.autoSpeak} onDone={onDone} onMore={(n) => addMore(prefs, n)} />;
+  return <Study words={words} pool={pool} newPerDay={prefs.newToday} revCap={capOf(prefs)} autoSpeak={prefs.autoSpeak} onDone={onDone} onMore={(n) => addMore(prefs, n)} />;
 }
 function N1Route({ onDone }) {
   const pool = useWords(true);
   return <N1Quiz pool={pool} onDone={onDone} />;
+}
+function LeechRoute({ onDone }) {
+  const pool = useWords(true);
+  return <LeechStudy pool={pool} onDone={onDone} />;
 }
 
 /* ───────── 아는 단어 빠르게 거르기 ─────────
