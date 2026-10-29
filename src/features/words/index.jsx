@@ -9,6 +9,7 @@ import { Study } from './Learn';
 import { askReading, meaningOnly, paceNeed } from './learn';
 import { N1Quiz } from './N1Quiz';
 import { LeechStudy, ReviewPlan, capOf } from './Leech';
+import { KanjiStudy } from './Kanji';
 import './words.css';
 
 const NEW_OPTS = [20, 30, 50, 100, 150, 200];
@@ -40,6 +41,7 @@ export default function Words() {
   if (mode === 'cards') return <StudyRoute onDone={() => done()} />;
   if (mode === 'n1') return <N1Route onDone={() => done()} />;
   if (mode === 'leech') return <LeechRoute onDone={() => done()} />;
+  if (mode === 'kanji' || mode === 'onkun') return <KanjiRoute start={mode === 'onkun' ? 'onkun' : 'rad'} onDone={() => done()} />;
   if (mode === 'sort') return <Sort key={round} onDone={done} />;
   if (mode === 'quiz') return <Quiz onDone={done} />;
   if (mode === 'add') return <AddWords onDone={done} />;
@@ -89,6 +91,10 @@ function Home({ go }) {
           <button type="button" className="btn" onClick={() => go('sort')}>아는 단어 빠르게 거르기</button>
           <button type="button" className="btn" onClick={() => go('quiz')}>한자 읽기 퀴즈 10문제</button>
           <button type="button" className="btn" onClick={() => go('n1')}>N1 모양 문제 10개</button>
+        </div>
+        <div className="row">
+          <button type="button" className="btn" onClick={() => go('kanji')}>부수로 한자 보기</button>
+          <button type="button" className="btn" onClick={() => go('onkun')}>음독·훈독 연습</button>
         </div>
       </section>
 
@@ -191,6 +197,10 @@ function StudyRoute({ onDone }) {
 function N1Route({ onDone }) {
   const pool = useWords(true);
   return <N1Quiz pool={pool} onDone={onDone} />;
+}
+function KanjiRoute({ start, onDone }) {
+  const pool = useWords(true);
+  return <KanjiStudy pool={pool} start={start} onDone={onDone} />;
 }
 function LeechRoute({ onDone }) {
   const pool = useWords(true);

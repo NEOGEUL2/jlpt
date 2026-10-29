@@ -2,6 +2,7 @@
 //  · 한국 한자음을 알면 일본 음독이 대개 규칙대로 나옴 (학 → がく, 발 → はつ). 받침 규칙은 ON_RULES
 import raw from './lists/hanja.txt?raw';
 import { BASE, hasKanji, isKatakana } from './words';
+import { readingKind } from './kanjidic';
 
 export const HANJA = (() => {
   const m = new Map();
@@ -109,7 +110,8 @@ function alignBy(toks, r, score) {
 
 // 음독 모양(か·かい·こう·かく·かつ·かん·きゅう·がっ …)이면 덤 점수
 const ON_SHAPE = /^[^ぁぃぅぇぉゃゅょっんー][ゃゅょ]?(?:[いうくきつちん]|っ)?$/;
-const score = (m, k, part) => Math.log(1 + (m.get(k)?.get(part) || 0)) + (ON_SHAPE.test(part) ? 0.5 : 0) - 0.05 * part.length;
+// 사전(KANJIDIC)에 있는 그 한자의 음독·훈독이면 덤 점수 더 (寸法 = すん·ぽう)
+const score = (m, k, part) => Math.log(1 + (m.get(k)?.get(part) || 0)) + (ON_SHAPE.test(part) ? 0.5 : 0) + (readingKind(k, part) ? 1.5 : 0) - 0.05 * part.length;
 
 let ON = null; // Map 한자 → Map 소리 → 단어 수
 function onTable() {
