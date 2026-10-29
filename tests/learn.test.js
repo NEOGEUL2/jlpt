@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { BASE } from '../src/features/words/words';
-import { addConfused, answer, finishKana, forecast, isLeech, learned, meaningChoices, newIds, reviewIds, reviewedToday, sameReading, toKana, waitingInfo } from '../src/features/words/learn';
+import { BASE, allWords } from '../src/features/words/words';
+import { addConfused, answer, finishKana, forecast, isFast, isLeech, needRead, paceNeed, learned, meaningChoices, newIds, reviewIds, reviewedToday, sameReading, toKana, waitingInfo } from '../src/features/words/learn';
 import { isLong, kanjiIndex, kanjiInfo, kanjiOf, longAt, longNote, onHint, readingParts, siblings, soundsOf } from '../src/features/words/hanja';
 import { makeQuiz, slotOf } from '../src/features/words/n1quiz';
 
@@ -200,5 +200,61 @@ describe('장음 · 한자마다 읽는 소리', () => {
     expect(longNote('로', 'ろ')).toBe('받침 없음 → 짧게');
     expect(longNote('영', 'えい')).toBe('받침 ㅇ → 길게 (규칙대로)');
     expect(longNote('급', 'きゅう')).toBe('받침 ㅂ → 길게 (규칙대로)');
+  });
+});
+
+describe('학습량 늘리기', () => {
+  const today = '2026-10-29';
+  const now = 1_800_000_000_000;
+  const exam = '2026-12-06';
+  const w = { id: '道路|どうろ', w: '道路', r: 'どうろ', m: '도로' };
+  it('빨리 맞힌 복습은 쉬움 → 간격 더 길게, 배우는 중 졸업은 그대로', () => {
+    const c = { t: '2026-10-25', f: '2026-10-20', d: today, i: 4, e: 250, n: 2, l: 0 };
+    const slow = answer(c, true, today, now, exam);
+    const fast = answer(c, true, today, now, exam, { fast: true });
+    expect(fast.i).toBeGreaterThan(slow.i);
+    expect(fast.e).toBe(265);
+    const ls = learned({}, today, now);
+    expect(answer(ls, true, today, now + 601e3, exam, { fast: true }).i).toBe(1);
+  });
+  it('빨리 = 뜻 3초 안, 읽기는 길이만큼', () => {
+    expect(isFast(w, { mean: 2000 })).toBe(true);
+    expect(isFast(w, { mean: 4000 })).toBe(false);
+    expect(isFast(w, { mean: 2000, read: 5000 })).toBe(true);
+    expect(isFast(w, { mean: 2000, read: 9000 })).toBe(false);
+    expect(isFast(w, {})).toBe(false);
+  });
+  it('읽기는 필요할 때만: 배우는 중·7일 미만·읽기 틀린 뒤·세 번에 한 번', () => {
+    const mature = { t: '2026-10-20', i: 9, n: 4, l: 0 };
+    expect(needRead(w, mature)).toBe(false);
+    expect(needRead(w, mature, 'all')).toBe(true);
+    expect(needRead(w, { ...mature, n: 3 })).toBe(true);
+    expect(needRead(w, { ...mature, i: 3 })).toBe(true);
+    expect(needRead(w, { ...mature, ls: 1 })).toBe(true);
+    expect(needRead({ w: 'テスト', r: 'てすと' }, { t: today, i: 0 })).toBe(false);
+    // 읽기를 틀리면 rx 2 → 두 번 맞혀야 빠짐
+    const ng = answer(mature, true, today, now, exam, { read: false });
+    expect(ng.rx).toBe(2);
+    expect(needRead(w, { ...ng, i: 9, n: 4 })).toBe(true);
+    const ok1 = answer({ ...ng, i: 9, n: 4 }, true, today, now, exam, { read: true });
+    expect(ok1.rx).toBe(1);
+    expect(answer(ok1, true, today, now, exam, { read: true }).rx).toBeUndefined();
+    // 배우는 중으로 틀려도 rx 는 남음
+    expect(answer({ ...ng, ls: 1 }, false, today, now, exam, { read: false }).rx).toBe(2);
+  });
+  it('시험 1주 전까지 다 보려면 하루 몇 개', () => {
+    expect(paceNeed(6000, 38)).toBe(200);
+    expect(paceNeed(0, 38)).toBe(0);
+    expect(paceNeed(100, 3)).toBe(100);
+  });
+  it('새 단어 순서: N1 먼저 · 섞어서', () => {
+    const exam1 = allWords({}, ['N3', 'N2', 'N1'], 'exam');
+    expect(exam1[0].lv).toBe('N1');
+    expect(exam1.at(-1).lv).toBe('N3');
+    const mix = allWords({}, ['N3', 'N2', 'N1'], 'mix');
+    expect(mix.length).toBe(exam1.length);
+    const first = mix.slice(0, 60).map((x) => x.lv);
+    for (const lv of ['N3', 'N2', 'N1']) expect(first).toContain(lv);
+    expect(allWords({}, ['N3', 'N1'])[0].lv).toBe('N3');
   });
 });

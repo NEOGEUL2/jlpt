@@ -120,3 +120,8 @@
 .wd-sort__btns { grid-template-columns: 1fr 1fr; }
 .wd-sort__btns .wd-g { padding: 18px 4px; }
 .wd-sort__btns .wd-g b { font-size: 17px; }
+/* 하루 몇 개 필요한지 */
+.wd-pace { display: grid; gap: 8px; }
+.wd-pace.is-short .sub b { color: var(--org); }
+.wd-pace .btn { justify-self: start; }
+.wd-note { font-size: 12.5px; }
