@@ -130,10 +130,14 @@ function Check({ w, pool, idx, cards, review, onDone, onExit }) {
   const ok = steps.every((s) => res[s]);
   const autoSaid = useRef(false);
 
+  // 일본어 자판(IME)으로 칠 땐 글자가 확정되기 전 상태(typed)가 늦게 따라올 수 있어서, 판정은 입력칸에 실제로 보이는 글로
+  const inputRef = useRef(null);
+  const composing = useRef(false);
   const judgeRead = (giveUp) => {
-    if (judged || (!giveUp && !typed.trim())) return; // 빈 칸 Enter 는 무시
-    const r = !giveUp && sameReading(typed, w.r);
-    if (!giveUp) setTyped(finishKana(typed));
+    const now = inputRef.current?.value ?? typed;
+    if (judged || (!giveUp && !now.trim())) return; // 빈 칸 Enter 는 무시
+    const r = !giveUp && sameReading(now, w.r);
+    if (!giveUp) setTyped(finishKana(now));
     setRes((x) => ({ ...x, read: r }));
     if (hasJa()) speak(w.r);
     autoSaid.current = true;
@@ -186,9 +190,15 @@ function Check({ w, pool, idx, cards, review, onDone, onExit }) {
                 autoCorrect="off"
                 spellCheck={false}
                 enterKeyHint="done"
+                ref={inputRef}
                 value={typed}
                 readOnly={judged}
-                onChange={(e) => setTyped(toKana(e.target.value))}
+                // 일본어 자판으로 글자를 고르는 중엔 그대로 두고, 확정되면 로마자만 가나로
+                onChange={(e) => setTyped(composing.current ? e.target.value : toKana(e.target.value))}
+                onCompositionStart={() => { composing.current = true; }}
+                onCompositionEnd={(e) => { composing.current = false; setTyped(toKana(e.currentTarget.value)); }}
+                // 글자 확정용 Enter(IME)는 채점하지 않음 — 한 번 더 Enter 로 채점
+                onKeyDown={(e) => { if (e.key === 'Enter' && (e.nativeEvent.isComposing || e.keyCode === 229)) e.preventDefault(); }}
                 className={judged ? (res.read ? 'is-right' : 'is-wrong') : ''}
                 placeholder="よみかた"
                 aria-label="읽는 법"
@@ -198,6 +208,7 @@ function Check({ w, pool, idx, cards, review, onDone, onExit }) {
             {judged && (
               <div className="ln-fb">
                 <b className={res.read ? 'wd-ok' : 'wd-ng'}>{res.read ? '맞았어요' : <>정답 <span lang="ja">{w.r}</span></>}</b>
+                {!res.read && <button type="button" className="btn ln-idk" onClick={() => setRes((x) => ({ ...x, read: true }))}>맞게 썼어요 (맞음으로)</button>}
                 {!res.read && <KanjiParts w={w.w} hints />}
               </div>
             )}
