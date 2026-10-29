@@ -26,3 +26,9 @@
 - `data.js` N1 문법(직접 만든 것, 교재 내용 아님) `{ id, f 문법, m 뜻, c 접속, g 묶음, ex {j,k}, q {s '（　）' 자리, a 정답, w 틀린 보기 3} }` — 새 문법은 여기 더하고 `grammar.test.js` 통과 확인. id는 기록 열쇠라 바꾸지 말 것
 - `quiz.js` 문제 종류 fill 빈칸·mean 뜻·form 문법, 틀린 보기는 같은 묶음 먼저(뜻 조각 겹치면 뺌 `sameMeaning`), 결과 → 등급 `gradeOf`(틀림 1 · 12초+ 2 · 보통 3 · 4초 안 4)
 - `Quiz.jsx` 화면(저장 함수는 props로), `index.jsx`가 store '문법' 묶음·srs·studylog 이어 줌. 하루 새 문법 10개, 틀린 건 판 끝에 한 번 더(기록은 처음 푼 것만). 기기별 기억 `jlpt:gq-kinds`
+
+## 독해·청해 (`src/features/reading/`)
+- 교재에서 푼 문제를 적는 곳(문제 본문은 안 넣음). 로직 `drill.js`(+`drill.test.js`), 화면 `index.jsx`(홈·적기·다시 풀기·오답 노트), CSS `reading.css`
+- 묶음 `drill` 기록 `{ id, date, section, mondai(r8~r13·l1~l5), page, label, total, correct, min, wrong: [{ id, q, mine, answer, reason, note, rv }] }`
+- 틀린 문제 다시 풀기 `rv { step, due, done, hist }`: 맞히면 1→3→7일 뒤, 세 번이면 다 앎, 틀리면 내일부터 다시 (`STEPS`)
+- 공부 시간: 기록 하나 = `logStudy` 한 줄(id `drill-<기록 id>`, 고치면 같은 줄) · 다시 풀기는 `useStudyTimer`
