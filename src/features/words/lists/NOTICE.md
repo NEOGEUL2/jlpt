@@ -46,3 +46,12 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 ```
+
+## parts.txt (한자 부수·부품·닮은 한자·음독/훈독)
+
+`tools/parts-build.py` 로 아래 자료에서 뽑음 (npm `kanji` 패키지 echamudi/japanese-toolkit 의 data 폴더 경유). 이 파일은 CC BY-SA 를 따름.
+
+- 부품: KanjiVG (Ulrich Apel, https://kanjivg.tagaini.net) — CC BY-SA 3.0
+- 부수 번호·음독·훈독: KANJIDIC2 (Electronic Dictionary Research and Development Group, https://www.edrdg.org) — CC BY-SA 4.0
+- 닮은 한자: kanjium (mifunetoshiro, https://github.com/mifunetoshiro/kanjium) — CC BY-SA 4.0
+- 부수 한국어 이름(kanji.js RAD_LIST·VARIANT)은 직접 정리

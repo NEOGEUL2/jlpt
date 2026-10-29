@@ -7,6 +7,7 @@ import { hasJa, speak } from '../../lib/speak';
 import { startTimer } from '../../lib/studylog';
 import { isKatakana, newToday, splitExample } from './words';
 import { BATCH, addConfused, answer, askReading, clean, finishKana, isFast, isLeech, learned, meaningChoices, needRead, newIds, reviewIds, sameReading, toKana, waitingInfo } from './learn';
+import { KIND_KO, radicalOf, readingKind } from './kanji';
 import { isLong, kanjiIndex, kanjiInfo, kanjiOf, longAt, longNote, onHint, readingParts, siblings, soundsOf } from './hanja';
 import './learn.css';
 
@@ -76,9 +77,11 @@ export function KanjiParts({ w, r, hints }) {
               <span className={`ln-kj__here ${isLong(part) ? 'is-long' : ''}`} lang="ja">
                 <LongKana text={part} />
                 <small lang="ko">{isLong(part) ? ' 길게' : ' 짧게'}</small>
+                {readingKind(ch, part) && <i className={`kj-tag is-${readingKind(ch, part)}`} lang="ko">{KIND_KO[readingKind(ch, part)]}</i>}
               </span>
             )}
             {note ? <em className={note.includes('외워') ? 'is-warn' : ''}>{note}</em> : !part && hints && !k.kokuji && onHint(k.ko) && <em>{onHint(k.ko)}</em>}
+            {hints && radicalOf(ch) && <small className="ln-kj__rad">부수 <span lang="ja">{radicalOf(ch).form}</span> {radicalOf(ch).formName || radicalOf(ch).name}</small>}
             {others.length > 0 && <small className="ln-kj__oth">다른 말에선 <span lang="ja">{others.map((x) => x.r).join(' · ')}</span></small>}
           </div>
         );

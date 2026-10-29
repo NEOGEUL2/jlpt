@@ -114,3 +114,54 @@ mark.ln-long { background: none; color: inherit; text-decoration: underline 2.5p
 .ln-kj__here.is-long small { color: var(--org); }
 .ln-kj__c em.is-warn { color: var(--red); }
 .ln-kj__oth { font-size: 11px; color: var(--sub); }
+
+/* 한자 공부 (Kanji.jsx) · 음독/훈독 표시 */
+.kj-tag { display: inline-block; font: 700 10.5px var(--kr); font-style: normal; padding: 1px 6px; border-radius: 6px; margin-left: 4px; vertical-align: 2px; }
+.kj-tag.is-on { background: color-mix(in srgb, var(--blu) 16%, transparent); color: var(--blu); }
+.kj-tag.is-kun { background: color-mix(in srgb, var(--org) 18%, transparent); color: var(--org); }
+.ln-kj__rad { font-size: 11px; color: var(--sub); }
+.ln-kj__rad span { color: var(--ink); font-weight: 700; }
+.kj .wd-top { gap: 10px; flex-wrap: wrap; }
+.kj-intro p { margin: 0; }
+.kj-g { gap: 10px; }
+.kj-g__hd { display: flex; gap: 12px; align-items: center; }
+.kj-g__hd > div { display: grid; gap: 1px; }
+.kj-g__glyph { font-size: 34px; line-height: 1; width: 52px; height: 52px; display: grid; place-items: center; border-radius: 12px; background: color-mix(in srgb, var(--grn) 12%, var(--bg)); color: var(--grn); }
+.kj-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.kj-chip { display: grid; justify-items: center; gap: 0; min-width: 64px; padding: 6px 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; font: inherit; }
+.kj-chip b { font-size: 24px; line-height: 1.2; }
+.kj-chip small { font-size: 11px; color: var(--sub); max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kj-chip.is-open { border-color: var(--grn); background: color-mix(in srgb, var(--grn) 10%, var(--bg)); }
+.kj-det { display: grid; gap: 6px; padding: 10px 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); text-align: left; width: 100%; max-width: 34em; justify-self: center; }
+.kj-det p { margin: 0; }
+.kj-parts b { font-size: 18px; }
+.kj-parts small { color: var(--sub); font-size: 12px; }
+.kj-rd { display: grid; gap: 3px; }
+.kj-rd p { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 6px; }
+.kj-rd p > span[lang='ja'] { display: inline-flex; flex-wrap: wrap; gap: 8px; font-size: 15px; }
+.kj-rd .kj-tag { margin-left: 0; }
+.kj-rd .is-used { font-weight: 800; text-decoration: underline 2px currentColor; text-underline-offset: 3px; }
+.kj-look { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.kj-look span { display: inline-flex; gap: 3px; align-items: baseline; }
+.kj-look b { font-size: 20px; }
+.kj-look small { font-size: 11px; color: var(--sub); }
+.kj-words { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.kj-words li { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 14px; }
+.kj-words li small { color: var(--sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kj-words li.is-miss b { color: var(--red); }
+.kj-guide ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; line-height: 1.55; }
+.kj-guide .kj-tag { margin: 0 2px 0 0; }
+.kj-exs { display: flex; flex-wrap: wrap; gap: 10px 16px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.kj-split { display: inline-flex; gap: 2px; align-items: end; }
+.kj-seg { display: grid; justify-items: center; padding: 3px 5px 2px; border-radius: 8px; border-bottom: 3px solid transparent; }
+.kj-seg b { font-size: 22px; line-height: 1.2; }
+.kj-seg span { font-size: 13px; }
+.kj-seg small { font: 700 10px var(--kr); }
+.kj-seg.is-on { border-color: var(--blu); background: color-mix(in srgb, var(--blu) 8%, transparent); }
+.kj-seg.is-on small { color: var(--blu); }
+.kj-seg.is-kun { border-color: var(--org); background: color-mix(in srgb, var(--org) 9%, transparent); }
+.kj-seg.is-kun small { color: var(--org); }
+.kj-seg.is-x small { color: var(--sub); }
+.kj-each { display: grid; gap: 6px; text-align: left; width: 100%; max-width: 30em; }
+.kj-each > div { padding: 6px 10px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); }
+.kj-each > div > b { font-size: 18px; }
