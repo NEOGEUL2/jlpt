@@ -1,0 +1,20 @@
+/* 설정 화면 */
+.st { max-width: 720px; }
+.st-hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.st-hd b { font-size: 16px; }
+.st-dot { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 99px; background: var(--cell); color: var(--sub); }
+.st-dot--ok { background: color-mix(in srgb, var(--grn) 16%, transparent); color: var(--grn); }
+.st-dot--error { background: color-mix(in srgb, var(--red) 14%, transparent); color: var(--red); }
+.st-err { color: var(--red); font-size: 13px; margin: 0; }
+.st-msg { color: var(--ink); }
+.st-det { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+.st-det summary { cursor: pointer; font-weight: 700; font-size: 14px; }
+.st-det[open] { gap: 10px; }
+.st-det > * + * { margin-top: 8px; }
+.st-login { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
+.st-steps { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
+.st-steps--ul { list-style: none; padding: 0; gap: 8px; }
+.st-steps a { color: var(--blu); }
+.st-sql { margin: 0; max-height: 200px; overflow: auto; padding: 10px; border-radius: 10px; background: var(--bg); font-size: 11.5px; white-space: pre; }
+.st-tog { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+.st-tog input { width: 18px; height: 18px; }
