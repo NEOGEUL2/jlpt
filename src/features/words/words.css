@@ -111,3 +111,12 @@
 .wd-lv .bar { height: 6px; }
 .wd-en { margin-left: 8px; vertical-align: 3px; font-size: 10.5px; }
 .wd-lvtag { font-style: normal; font-size: 11px; color: var(--sub); }
+
+/* 아는 단어 거르기 */
+.wd-sort { min-height: 300px; }
+.wd-sort__last { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-height: 44px; padding: 10px 14px; border-radius: 12px; background: var(--surf); box-shadow: var(--shadow); font-size: 14px; }
+.wd-sort__last > span:first-child { font-weight: 700; font-size: 12.5px; }
+.wd-sort__m { flex: 1; min-width: 8em; }
+.wd-sort__btns { grid-template-columns: 1fr 1fr; }
+.wd-sort__btns .wd-g { padding: 18px 4px; }
+.wd-sort__btns .wd-g b { font-size: 17px; }

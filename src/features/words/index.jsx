@@ -5,15 +5,15 @@ import { EXAM_DATE, GRADES, grade, maturity, preview, queue } from '../../lib/sr
 import { diffDays, todayStr } from '../../lib/dates';
 import { hasJa, speak } from '../../lib/speak';
 import { startTimer } from '../../lib/studylog';
-import { BASE, LEVELS, allWords, hasKanji, isKatakana, newToday, parsePaste, quizPick, readingChoices, splitExample } from './words';
+import { BASE, LEVELS, allWords, hasKanji, idsInOrder, unsorted, isKatakana, newToday, parsePaste, quizPick, readingChoices, splitExample } from './words';
 import './words.css';
 
-const NEW_OPTS = [10, 20, 30, 50, 80];
+const NEW_OPTS = [20, 30, 50, 80, 100];
 
 function usePrefs() {
   const p = useData('prefs').main || {};
   const levels = LEVELS.filter((l) => (p.levels || LEVELS).includes(l));
-  return { newPerDay: p.newPerDay || 20, ...p, levels: levels.length ? levels : LEVELS };
+  return { newPerDay: p.newPerDay || 50, ...p, levels: levels.length ? levels : LEVELS };
 }
 function useWords(all) {
   const own = useData('own');
@@ -25,8 +25,13 @@ const setPrefs = (patch) => save('prefs', 'main', patch);
 
 export default function Words() {
   const [mode, setMode] = useState(null); // null 첫 화면 · 'cards' · 'quiz' · 'add' · 'list'
-  const done = () => setMode(null);
-  if (mode === 'cards') return <Session onDone={done} />;
+  const [round, setRound] = useState(0);
+  const done = (next = null) => {
+    setMode(next);
+    setRound((r) => r + 1);
+  };
+  if (mode === 'cards') return <Session onDone={() => done()} />;
+  if (mode === 'sort') return <Sort key={round} onDone={done} />;
   if (mode === 'quiz') return <Quiz onDone={done} />;
   if (mode === 'add') return <AddWords onDone={done} />;
   if (mode === 'list') return <WordList onDone={done} />;
@@ -40,7 +45,7 @@ function Home({ go }) {
   const prefs = usePrefs();
   const today = todayStr();
   const nNew = newToday(cards, today);
-  const q = queue(words.map((w) => w.id), cards, today, Math.max(0, prefs.newPerDay - nNew));
+  const q = queue(idsInOrder(words, cards), cards, today, Math.max(0, prefs.newPerDay - nNew));
   const m = maturity(words.map((w) => w.id), cards);
   const total = words.length;
   const dd = diffDays(today, EXAM_DATE);
@@ -70,6 +75,7 @@ function Home({ go }) {
           </div>
         )}
         <div className="row">
+          <button type="button" className="btn" onClick={() => go('sort')}>아는 단어 빠르게 거르기</button>
           <button type="button" className="btn" onClick={() => go('quiz')}>한자 읽기 퀴즈 10문제</button>
         </div>
       </section>
@@ -154,7 +160,7 @@ function Session({ onDone }) {
   const byId = useMemo(() => Object.fromEntries(words.map((w) => [w.id, w])), [words]);
   // 시작할 때 한 번 줄 세움 (복습 먼저, 새 단어는 사이사이)
   const [line, setLine] = useState(() => {
-    const q = queue(words.map((w) => w.id), cards, today, Math.max(0, prefs.newPerDay - newToday(cards, today)));
+    const q = queue(idsInOrder(words, cards), cards, today, Math.max(0, prefs.newPerDay - newToday(cards, today)));
     const out = [];
     let f = 0;
     q.due.forEach((id, i) => {
@@ -285,6 +291,95 @@ function Session({ onDone }) {
           {isNew && <button type="button" className="btn btn--big" onClick={knowIt}>이미 알아요</button>}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ───────── 아는 단어 빠르게 거르기 ─────────
+ 아직 안 본 단어를 한 장씩: 알아요 → 다시 안 나옴(skip) · 몰라요 → 새 단어 줄 맨 앞(pri). 뜻은 누른 뒤 아래에 잠깐 */
+const SORT_N = 50;
+function Sort({ onDone }) {
+  const words = useWords();
+  const cards = useData('words');
+  const today = todayStr();
+  const [list] = useState(() => unsorted(words, cards).slice(0, SORT_N));
+  const [pos, setPos] = useState(0);
+  const [hist, setHist] = useState([]); // [{ w, known }]
+  const timer = useRef(null);
+  useEffect(() => {
+    timer.current = startTimer('vocab', '아는 단어 거르기');
+    return () => timer.current?.finish();
+  }, []);
+  const w = list[pos];
+  const pick = (known) => {
+    if (!w) return;
+    if (known) save('words', w.id, { skip: 1, t: today, d: '9999-12-31', i: 999, f: today });
+    else save('words', w.id, { pri: 1 });
+    timer.current?.add({ n: 1, ok: known ? 1 : 0, learned: known ? 1 : 0 });
+    setHist((h) => [...h, { w, known }]);
+    setPos((p) => p + 1);
+  };
+  const undo = () => {
+    const last = hist.at(-1);
+    if (!last) return;
+    remove('words', last.w.id);
+    setHist((h) => h.slice(0, -1));
+    setPos((p) => p - 1);
+  };
+  useEffect(() => {
+    const key = (e) => {
+      if (e.key === 'ArrowLeft' || e.key === '1') pick(true);
+      else if (e.key === 'ArrowRight' || e.key === '2') pick(false);
+      else if (e.key === 'Backspace' || (e.key === 'z' && (e.metaKey || e.ctrlKey))) undo();
+      else if (e.key === 'Escape') onDone();
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  });
+  const known = hist.filter((h) => h.known).length;
+  const last = hist.at(-1);
+  if (!w) {
+    return (
+      <div className="page wd">
+        <section className="card wd-end">
+          <b className="wd-end__t">{hist.length}개 걸렀어요</b>
+          <div className="wd-today__nums">
+            <div><b className="num wd-c-due">{known}</b><small>알아요 · 다시 안 나옴</small></div>
+            <div><b className="num wd-c-new">{hist.length - known}</b><small>몰라요 · 새 단어로 먼저</small></div>
+          </div>
+          <div className="row">
+            {unsorted(words, cards).length > 0 && <button type="button" className="btn btn--pri" onClick={() => onDone('sort')}>{SORT_N}개 더</button>}
+            <button type="button" className="btn" onClick={() => onDone()}>처음으로</button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+  return (
+    <div className="page wd wd-sess">
+      <header className="wd-sess__top">
+        <button type="button" className="btn" onClick={() => onDone()} aria-label="그만하기">✕</button>
+        <div className="bar wd-sess__bar"><i style={{ width: `${(pos / list.length) * 100}%`, background: 'var(--blu)' }} /></div>
+        <span className="num sub">{pos + 1}/{list.length}</span>
+      </header>
+      <div className="card wd-card wd-sort">
+        <div className="wd-card__tag"><span className="wd-pill">{w.lv}</span></div>
+        <div className="wd-card__w" lang="ja">{w.w}</div>
+        <p className="sub">뜻과 읽기를 바로 떠올릴 수 있으면 '알아요'</p>
+      </div>
+      <div className="wd-sort__last" aria-live="polite">
+        {last ? (
+          <>
+            <span className={last.known ? 'wd-ok' : 'wd-ng'}>{last.known ? '알아요' : '몰라요'}</span>
+            <b lang="ja">{last.w.w}</b><span lang="ja" className="sub">{last.w.r}</span><span className="wd-sort__m">{last.w.m}</span>
+            <button type="button" className="wd-x" onClick={undo}>되돌리기</button>
+          </>
+        ) : <span className="sub">누른 단어의 뜻이 여기 나와요. 틀렸으면 되돌리기</span>}
+      </div>
+      <div className="wd-grades wd-sort__btns">
+        <button type="button" className="wd-g wd-g--3" onClick={() => pick(true)}><b>알아요</b><kbd>←</kbd></button>
+        <button type="button" className="wd-g wd-g--1" onClick={() => pick(false)}><b>몰라요</b><kbd>→</kbd></button>
+      </div>
     </div>
   );
 }

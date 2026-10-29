@@ -182,5 +182,16 @@ export function quizPick(words, cards, n = 10, rnd = Math.random) {
   return shuffle(pick, rnd);
 }
 
+// 새 단어 줄 순서: '몰라요'로 고른 단어(pri)가 먼저, 그다음 원래 순서
+export function idsInOrder(words, cards) {
+  const p = [];
+  const r = [];
+  for (const w of words) (cards[w.id]?.pri && !cards[w.id]?.t ? p : r).push(w.id);
+  return [...p, ...r];
+}
+
+// 아직 안 거른 새 단어 (본 적 없고 '몰라요'도 안 누른 것)
+export const unsorted = (words, cards) => words.filter((w) => !cards[w.id]);
+
 // 오늘 새로 본 단어 수 (카드 상태의 첫 본 날 f)
 export const newToday = (cards, today) => Object.values(cards).filter((c) => c.f === today).length;
