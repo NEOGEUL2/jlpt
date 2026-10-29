@@ -61,13 +61,21 @@ export const BASE = (() => {
   return all.filter((x) => !seen.has(x.id) && seen.add(x.id));
 })();
 
-// 교재 단어가 먼저 (지금 공부하는 단원), 그다음 고른 급수의 기본 단어 (levels 순서대로 새 단어가 나옴)
+// 급수 안에서는 섞인 순서 (목록 원래 순서는 가나 순이라). id 로 정해서 기기·날마다 같은 순서
+const mix = (id) => {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return h >>> 0;
+};
+const MIXED = [...BASE].sort((a, b) => mix(a.id) - mix(b.id));
+
+// 교재 단어가 먼저 (지금 공부하는 단원), 그다음 고른 급수의 기본 단어 (levels 순서대로, 급수 안은 섞어서)
 export function allWords(own = {}, levels = LEVELS) {
   const mine = Object.entries(own)
     .map(([id, x]) => ({ id, w: x.w, r: x.r, m: x.m, ex: x.ex || '', k: x.k || '', set: '교재', lv: '교재', src: x.src || '', at: x.at || 0 }))
     .sort((a, b) => a.at - b.at);
   const ids = new Set(mine.map((x) => x.id));
-  const rest = BASE.filter((x) => !ids.has(x.id));
+  const rest = MIXED.filter((x) => !ids.has(x.id));
   return [...mine, ...levels.flatMap((lv) => rest.filter((x) => x.lv === lv))];
 }
 

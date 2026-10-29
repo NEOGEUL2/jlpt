@@ -73,3 +73,11 @@ describe('복습 주기', () => {
     expect(q.fresh).toEqual(['d', 'e']);
   });
 });
+
+describe('새 단어 순서', () => {
+  it('가나 순이 아니라 섞여서, 늘 같은 순서', () => {
+    const a = allWords({}, ['N2']).slice(0, 30).map((w) => w.r);
+    expect(a).not.toEqual([...a].sort());
+    expect(allWords({}, ['N2']).slice(0, 30).map((w) => w.r)).toEqual(a);
+  });
+});
