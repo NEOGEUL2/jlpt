@@ -74,7 +74,18 @@ export const ORDERS = [
   { k: 'easy', label: 'N3부터' },
   { k: 'exam', label: 'N1·N2 먼저' },
   { k: 'mix', label: '섞어서' },
+  { k: 'kanji', label: '아는 한자부터' },
 ];
+
+// N3 단어에 나오는 한자 = 이미 아는 한자 (N3 까지는 익숙한 사용자 기준)
+const KNOWN_KANJI = new Set(BASE.filter((x) => x.lv === 'N3').flatMap((x) => [...x.w].filter((c) => /[一-鿿]/.test(c))));
+// 아는 한자 비율 (한자 없는 말은 0.5 → 중간). 한국 한자음으로 소리·뜻을 짐작할 수 있는 단어부터
+export function knownKanjiRate(w) {
+  const ks = [...new Set([...w].filter((c) => /[一-鿿]/.test(c)))];
+  if (!ks.length) return 0.5;
+  return ks.filter((c) => KNOWN_KANJI.has(c)).length / ks.length;
+}
+export const isKnownKanji = (c) => KNOWN_KANJI.has(c);
 // 급수마다 섞인 목록을 길이에 맞게 고르게 엮음 (N1 이 N3 보다 많으면 N1 이 더 자주)
 const interleave = (groups) =>
   groups
@@ -91,6 +102,13 @@ export function allWords(own = {}, levels = LEVELS, order = 'easy') {
   const rest = MIXED.filter((x) => !ids.has(x.id));
   const lvs = order === 'exam' ? [...levels].reverse() : levels;
   const groups = lvs.map((lv) => rest.filter((x) => x.lv === lv));
+  if (order === 'kanji') {
+    // 시험 급수(N2·N1)를 아는 한자 비율 높은 것부터 (같은 비율 안은 섞인 순서 → 같은 한자 단어가 한꺼번에 몰리지 않음), N3 는 뒤에
+    const hard = rest.filter((x) => x.lv !== 'N3' && levels.includes(x.lv));
+    const rate = new Map(hard.map((x) => [x.id, knownKanjiRate(x.w)]));
+    hard.sort((a, b) => rate.get(b.id) - rate.get(a.id));
+    return [...mine, ...hard, ...(levels.includes('N3') ? rest.filter((x) => x.lv === 'N3') : [])];
+  }
   return [...mine, ...(order === 'mix' ? interleave(groups) : groups.flat())];
 }
 
