@@ -1,20 +1,21 @@
 // 설정: 서버 연결(기록 앱과 같은 Supabase) · 로그인 · 표 만들기 SQL · 소리 · 설치 방법
 import { useEffect, useState } from 'react';
-import { cloudConfig, onCloudChange, setCloudConfig, supabase } from '../../lib/supabase';
+import { cloudConfig, currentSession, onCloudChange, setCloudConfig, supabase } from '../../lib/supabase';
 import { CLOUD_SQL, save, sync, useData, useSyncStatus } from '../../lib/store';
 import { STUDY_SQL, syncStudy } from '../../lib/studylog';
 import { hasJa, speak } from '../../lib/speak';
 import './settings.css';
 
+// undefined = 아직 확인 중 (Safari 를 다시 열면 토큰 새로 받는 동안 잠깐 걸림) · null = 로그인 안 됨
 function useSession() {
-  const [s, setS] = useState(null);
+  const [s, setS] = useState(undefined);
   const [ver, setVer] = useState(0);
   useEffect(() => onCloudChange(() => setVer((v) => v + 1)), []);
   useEffect(() => {
     const sb = supabase();
     if (!sb) return setS(null);
-    sb.auth.getSession().then(({ data }) => setS(data.session));
-    const { data } = sb.auth.onAuthStateChange((_e, sess) => setS(sess));
+    currentSession(sb).then(setS, () => setS(null));
+    const { data } = sb.auth.onAuthStateChange((e, sess) => e !== 'INITIAL_SESSION' && setS(sess));
     return () => data.subscription.unsubscribe();
   }, [ver]);
   return s;
@@ -29,7 +30,13 @@ function Account() {
   const cfg = cloudConfig();
   const [url, setUrl] = useState(cfg.url || '');
   const [key, setKey] = useState(cfg.key || '');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => {
+    try {
+      return localStorage.getItem('jlpt:email') || '';
+    } catch {
+      return '';
+    }
+  });
   const [pw, setPw] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
@@ -51,6 +58,11 @@ function Account() {
     if (error) setMsg(/Invalid login/i.test(error.message) ? '이메일이나 비밀번호가 맞지 않아요. 기록 앱에서 쓰는 계정이에요.' : error.message);
     else {
       setPw('');
+      try {
+        localStorage.setItem('jlpt:email', email.trim());
+      } catch {
+        /* 다음에 다시 치면 됨 */
+      }
       syncAll();
     }
   };
@@ -62,7 +74,9 @@ function Account() {
   return (
     <section className="card">
       <div className="st-hd"><b>계정 · 기기 연동</b>{session && <span className={`st-dot st-dot--${st.state}`}>{st.state === 'ok' ? '연동됨' : st.state === 'syncing' ? '맞추는 중' : st.state === 'error' ? '문제 있음' : '이 기기만'}</span>}</div>
-      {session ? (
+      {session === undefined && linked ? (
+        <p className="sub">로그인 확인 중…</p>
+      ) : session ? (
         <>
           <p className="sub">{session.user.email} 으로 로그인됨. 아이폰 · 맥 · PC에서 같은 계정으로 로그인하면 기록이 같이 보여요.</p>
           {st.state === 'error' && <p className="st-err">{st.error}</p>}

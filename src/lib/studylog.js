@@ -8,7 +8,7 @@
 //  · 이 기기 localStorage 'jlpt:study'(최근 기록) · 'jlpt:study-q'(아직 안 올린 id). 인터넷·로그인 되면 올림. 서버가 없어도 이 기기엔 남음
 //  · 표 만드는 SQL = STUDY_SQL (Girok sync.js STUDY_SQL 과 똑같이 유지)
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { supabase, onCloudChange } from './supabase';
+import { currentSession, supabase, onCloudChange } from './supabase';
 import { addDays, ymd } from './dates';
 
 export const STUDY_SQL = `-- 기록: JLPT 공부 앱 공부 기록 (한 번 공부 = 한 줄, 나만 읽고 쓸 수 있게, 여러 번 실행해도 괜찮음)
@@ -154,8 +154,7 @@ const isNoTable = (e) => /does not exist|could not find the table|schema cache/i
 async function ready() {
   const sb = supabase();
   if (!sb) return null;
-  const { data } = await sb.auth.getSession();
-  return data?.session ? sb : null;
+  return (await currentSession(sb)) ? sb : null;
 }
 
 let pushTimer = null;

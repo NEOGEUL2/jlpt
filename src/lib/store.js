@@ -3,7 +3,7 @@
 //  · 이 기기: localStorage 'jlpt:d:<묶음>' / 서버: Supabase 표 jlpt_data (한 기록 = 한 줄, SQL 은 CLOUD_SQL)
 //  · 화면에서: const words = useData('words'); save('words', id, { ...바뀐 칸 }); remove('words', id)
 import { useSyncExternalStore } from 'react';
-import { supabase } from './supabase';
+import { currentSession, supabase } from './supabase';
 
 const LS = (k) => `jlpt:d:${k}`;
 const DIRTY = 'jlpt:dirty';
@@ -137,8 +137,7 @@ export function sync() {
 async function doSync() {
   const sb = supabase();
   if (!sb) return setStatus({ state: 'local' });
-  const { data: sess } = await sb.auth.getSession();
-  if (!sess?.session) return setStatus({ state: 'local' });
+  if (!(await currentSession(sb))) return setStatus({ state: 'local' });
   setStatus({ state: 'syncing' });
   try {
     // 1) 올리기
