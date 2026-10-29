@@ -69,14 +69,29 @@ const mix = (id) => {
 };
 const MIXED = [...BASE].sort((a, b) => mix(a.id) - mix(b.id));
 
-// 교재 단어가 먼저 (지금 공부하는 단원), 그다음 고른 급수의 기본 단어 (levels 순서대로, 급수 안은 섞어서)
-export function allWords(own = {}, levels = LEVELS) {
+// 새 단어 순서 (prefs.main.order): easy 쉬운 급수부터 N3→N1 (기본) · exam 시험 급수부터 N1→N3 · mix 급수를 고르게 섞어서
+export const ORDERS = [
+  { k: 'easy', label: 'N3부터' },
+  { k: 'exam', label: 'N1·N2 먼저' },
+  { k: 'mix', label: '섞어서' },
+];
+// 급수마다 섞인 목록을 길이에 맞게 고르게 엮음 (N1 이 N3 보다 많으면 N1 이 더 자주)
+const interleave = (groups) =>
+  groups
+    .flatMap((g) => g.map((x, k) => [(k + 0.5) / g.length, x]))
+    .sort((a, b) => a[0] - b[0])
+    .map((x) => x[1]);
+
+// 교재 단어가 먼저 (지금 공부하는 단원), 그다음 고른 급수의 기본 단어 (order 대로, 급수 안은 섞어서)
+export function allWords(own = {}, levels = LEVELS, order = 'easy') {
   const mine = Object.entries(own)
     .map(([id, x]) => ({ id, w: x.w, r: x.r, m: x.m, ex: x.ex || '', k: x.k || '', set: '교재', lv: '교재', src: x.src || '', at: x.at || 0 }))
     .sort((a, b) => a.at - b.at);
   const ids = new Set(mine.map((x) => x.id));
   const rest = MIXED.filter((x) => !ids.has(x.id));
-  return [...mine, ...levels.flatMap((lv) => rest.filter((x) => x.lv === lv))];
+  const lvs = order === 'exam' ? [...levels].reverse() : levels;
+  const groups = lvs.map((lv) => rest.filter((x) => x.lv === lv));
+  return [...mine, ...(order === 'mix' ? interleave(groups) : groups.flat())];
 }
 
 const KANJI = /[一-鿿々]/;

@@ -4,8 +4,9 @@ import { remove, save, saveMany, useData } from '../../lib/store';
 import { EXAM_DATE, maturity, queue } from '../../lib/srs';
 import { diffDays, todayStr } from '../../lib/dates';
 import { startTimer } from '../../lib/studylog';
-import { BASE, LEVELS, allWords, hasKanji, idsInOrder, unsorted, newToday, parsePaste, quizPick, readingChoices, splitExample } from './words';
+import { BASE, LEVELS, ORDERS, allWords, hasKanji, idsInOrder, unsorted, newToday, parsePaste, quizPick, readingChoices, splitExample } from './words';
 import { Study } from './Learn';
+import { paceNeed } from './learn';
 import { N1Quiz } from './N1Quiz';
 import { LeechStudy, ReviewPlan, capOf } from './Leech';
 import './words.css';
@@ -18,14 +19,14 @@ function usePrefs() {
   const base = p.newPerDay || 50;
   // 오늘만 더 배우기 ('10개 더'): prefs.more = { d: 날짜, n: 더한 수 }
   const more = p.more?.d === todayStr() ? p.more.n || 0 : 0;
-  return { ...p, newPerDay: base, more, newToday: base + more, levels: levels.length ? levels : LEVELS };
+  return { ...p, newPerDay: base, more, newToday: base + more, levels: levels.length ? levels : LEVELS, order: p.order || 'easy', readMode: p.readMode || 'smart' };
 }
 const addMore = (prefs, n) => save('prefs', 'main', { more: { d: todayStr(), n: prefs.more + n } });
 function useWords(all) {
   const own = useData('own');
-  const { levels } = usePrefs();
+  const { levels, order } = usePrefs();
   const key = all ? LEVELS.join() : levels.join();
-  return useMemo(() => allWords(own, key.split(',')), [own, key]);
+  return useMemo(() => allWords(own, key.split(','), order), [own, key, order]);
 }
 const setPrefs = (patch) => save('prefs', 'main', patch);
 
@@ -59,8 +60,9 @@ function Home({ go }) {
   const dd = diffDays(today, EXAM_DATE);
   const left = q.due.length + q.fresh.length;
   const ownN = words.filter((w) => w.set === '교재').length;
-  // 이 속도면 언제 다 보나
+  // 이 속도면 언제 다 보나 · 시험 7일 전까지 다 한 번씩 보려면 하루 몇 개 (마지막 일주일은 복습만)
   const daysNeed = Math.ceil(m.fresh / prefs.newPerDay);
+  const pace = paceNeed(m.fresh, dd);
   return (
     <div className="page wd">
       <header className="wd-top">
@@ -106,16 +108,37 @@ function Home({ go }) {
           <span><i style={{ background: 'var(--cell)' }} />안 본 것 {m.fresh}</span>
         </div>
         {m.fresh > 0 && dd > 0 && (
-          <p className={`sub ${daysNeed > dd - 5 ? 'wd-warn' : ''}`}>
-            하루 {prefs.newPerDay}개씩이면 {daysNeed}일 뒤에 모두 한 번씩 봐요.{daysNeed > dd - 5 ? ' 시험 전 복습 시간을 두려면 하루 새 단어를 늘려 보세요.' : ''}
-          </p>
+          <div className={`wd-pace ${pace > prefs.newPerDay ? 'is-short' : ''}`}>
+            <p className="sub">
+              하루 {prefs.newPerDay}개씩이면 {daysNeed}일 뒤에 모두 한 번씩 봐요.
+              {pace > prefs.newPerDay
+                ? <> 시험 1주 전까지 남은 <b className="num">{m.fresh}</b>개를 다 보려면 <b className="num">하루 {pace}개</b>가 필요해요. 아는 단어는 '빠르게 거르기'로 넘기면 줄어요.</>
+                : ' 시험 1주 전까지 다 볼 수 있는 속도예요.'}
+            </p>
+            {pace > prefs.newPerDay && <button type="button" className="btn btn--pri" onClick={() => setPrefs({ newPerDay: pace })}>하루 {pace}개로 맞추기</button>}
+          </div>
         )}
         <div className="row">
           <span className="sub">하루 새 단어</span>
           <span className="seg">
             {NEW_OPTS.map((n) => <button key={n} type="button" aria-pressed={prefs.newPerDay === n} onClick={() => setPrefs({ newPerDay: n })}>{n}</button>)}
+            {!NEW_OPTS.includes(prefs.newPerDay) && <button type="button" aria-pressed>{prefs.newPerDay}</button>}
           </span>
         </div>
+        <div className="row">
+          <span className="sub">새 단어 순서</span>
+          <span className="seg">
+            {ORDERS.map((o) => <button key={o.k} type="button" aria-pressed={prefs.order === o.k} onClick={() => setPrefs({ order: o.k })}>{o.label}</button>)}
+          </span>
+        </div>
+        <div className="row">
+          <span className="sub">복습 때 읽기 치기</span>
+          <span className="seg">
+            <button type="button" aria-pressed={prefs.readMode !== 'all'} onClick={() => setPrefs({ readMode: 'smart' })}>필요할 때만</button>
+            <button type="button" aria-pressed={prefs.readMode === 'all'} onClick={() => setPrefs({ readMode: 'all' })}>매번</button>
+          </span>
+        </div>
+        <p className="sub wd-note">맞히면 바로 다음 장으로 넘어가고, 빨리 맞힌 단어는 다음 복습이 더 늦게 와요. '필요할 때만'은 배우는 중·읽기를 틀린 적 있는 단어와 세 번에 한 번만 읽기를 쳐요.</p>
       </section>
 
       <section className="card">
@@ -139,7 +162,7 @@ function Levels({ prefs, cards }) {
   };
   return (
     <section className="card">
-      <div className="wd-hd"><b>공부할 급수</b><small>고른 급수만 새 단어로 나와요 · 쉬운 급수부터</small></div>
+      <div className="wd-hd"><b>공부할 급수</b><small>고른 급수만 새 단어로 나와요</small></div>
       <div className="wd-lvs">
         {LEVELS.map((lv) => {
           const ids = BASE.filter((x) => x.lv === lv).map((x) => x.id);
@@ -163,7 +186,7 @@ function StudyRoute({ onDone }) {
   const words = useWords();
   const pool = useWords(true);
   const prefs = usePrefs();
-  return <Study words={words} pool={pool} newPerDay={prefs.newToday} revCap={capOf(prefs)} autoSpeak={prefs.autoSpeak} onDone={onDone} onMore={(n) => addMore(prefs, n)} />;
+  return <Study words={words} pool={pool} newPerDay={prefs.newToday} revCap={capOf(prefs)} autoSpeak={prefs.autoSpeak} readMode={prefs.readMode} onDone={onDone} onMore={(n) => addMore(prefs, n)} />;
 }
 function N1Route({ onDone }) {
   const pool = useWords(true);
@@ -181,7 +204,8 @@ function Sort({ onDone }) {
   const words = useWords();
   const cards = useData('words');
   const today = todayStr();
-  const [list] = useState(() => unsorted(words, cards).slice(0, SORT_N));
+  // 거르기는 순서 설정과 상관없이 쉬운 급수부터 (아는 단어가 많을수록 빨리 줄어듦)
+  const [list] = useState(() => LEVELS.flatMap((lv) => unsorted(words, cards).filter((w) => w.lv === lv || (lv === 'N3' && w.lv === '교재'))).slice(0, SORT_N));
   const [pos, setPos] = useState(0);
   const [hist, setHist] = useState([]); // [{ w, known }]
   const timer = useRef(null);

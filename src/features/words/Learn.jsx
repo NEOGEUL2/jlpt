@@ -6,7 +6,7 @@ import { todayStr } from '../../lib/dates';
 import { hasJa, speak } from '../../lib/speak';
 import { startTimer } from '../../lib/studylog';
 import { isKatakana, newToday, splitExample } from './words';
-import { BATCH, addConfused, answer, askReading, clean, finishKana, isLeech, learned, meaningChoices, newIds, reviewIds, sameReading, toKana, waitingInfo } from './learn';
+import { BATCH, addConfused, answer, askReading, clean, finishKana, isFast, isLeech, learned, meaningChoices, needRead, newIds, reviewIds, sameReading, toKana, waitingInfo } from './learn';
 import { isLong, kanjiIndex, kanjiInfo, kanjiOf, longAt, longNote, onHint, readingParts, siblings, soundsOf } from './hanja';
 import './learn.css';
 
@@ -159,9 +159,12 @@ function useKeys(fn) {
   }, []);
 }
 
-// onDone(ok) — ok: 읽기·뜻 둘 다 맞힘. review 면 마지막에 몰랐음/알았음 버튼
-export function Check({ w, pool, idx, cards, review, onDone, onExit, onConfuse }) {
-  const steps = useMemo(() => [...(askReading(w) ? ['read'] : []), 'mean'], [w]);
+// onDone(ok, info) — ok: 읽기·뜻 둘 다 맞힘, info: { fast 빨리 맞힘, read 읽기 결과(안 물었으면 undefined) }
+//  · 맞히면 잠깐 보여 주고 저절로 다음 (Enter·알았음 안 눌러도 됨). 틀렸을 때만 멈춤 → review 면 단어 보기 + 몰랐음/알았음
+//  · review 면 읽기는 needRead 일 때만 (readMode 'smart' · 'all')
+const AUTO_MS = 650;
+export function Check({ w, pool, idx, cards, review, readMode, onDone, onExit, onConfuse }) {
+  const steps = useMemo(() => [...((review ? needRead(w, cards?.[w.id], readMode) : askReading(w)) ? ['read'] : []), 'mean'], [w]); // eslint-disable-line react-hooks/exhaustive-deps
   const [si, setSi] = useState(0);
   const [typed, setTyped] = useState('');
   const [res, setRes] = useState({}); // { read: true/false, mean: true/false }
@@ -171,6 +174,18 @@ export function Check({ w, pool, idx, cards, review, onDone, onExit, onConfuse }
   const judged = res[step] !== undefined;
   const ok = steps.every((s) => res[s]);
   const autoSaid = useRef(false);
+  // 생각한 시간 (단계가 보인 때부터 답할 때까지)
+  const t0 = useRef(Date.now());
+  const ms = useRef({});
+  useEffect(() => {
+    t0.current = Date.now();
+  }, [si]);
+  const sent = useRef(false);
+  const finish = (good) => {
+    if (sent.current) return;
+    sent.current = true;
+    onDone(good, { fast: good && ok && isFast(w, ms.current), read: steps.includes('read') ? !!res.read : undefined });
+  };
 
   // 일본어 자판(IME)으로 칠 땐 글자가 확정되기 전 상태(typed)가 늦게 따라올 수 있어서, 판정은 입력칸에 실제로 보이는 글로
   const inputRef = useRef(null);
@@ -179,6 +194,7 @@ export function Check({ w, pool, idx, cards, review, onDone, onExit, onConfuse }
     const now = inputRef.current?.value ?? typed;
     if (judged || (!giveUp && !now.trim())) return; // 빈 칸 Enter 는 무시
     const r = !giveUp && sameReading(now, w.r);
+    ms.current.read = Date.now() - t0.current;
     if (!giveUp) setTyped(finishKana(now));
     setRes((x) => ({ ...x, read: r }));
     if (hasJa()) speak(w.r);
@@ -187,6 +203,7 @@ export function Check({ w, pool, idx, cards, review, onDone, onExit, onConfuse }
   const pick = (m) => {
     if (judged) return;
     setPicked(m);
+    ms.current.mean = Date.now() - t0.current;
     setRes((x) => ({ ...x, mean: m === w.m }));
     // 잘못 고른 뜻의 단어 = 헷갈리는 짝
     if (m && m !== w.m && onConfuse) {
@@ -198,9 +215,17 @@ export function Check({ w, pool, idx, cards, review, onDone, onExit, onConfuse }
   const next = () => {
     if (!judged) return;
     if (si + 1 < steps.length) setSi(si + 1);
-    else if (review) setSi(steps.length);
-    else onDone(ok);
+    else if (review && !ok) setSi(steps.length);
+    else finish(ok);
   };
+  // 맞히면 저절로 다음
+  const nextRef = useRef(next);
+  nextRef.current = next;
+  useEffect(() => {
+    if (!judged || !res[step]) return undefined;
+    const t = setTimeout(() => nextRef.current(), AUTO_MS);
+    return () => clearTimeout(t);
+  }, [judged, step, res]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useKeys((e) => {
     if (e.key === 'Escape') return onExit();
@@ -208,9 +233,9 @@ export function Check({ w, pool, idx, cards, review, onDone, onExit, onConfuse }
     if (step === 'done') {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        onDone(ok);
-      } else if (e.key === '1') onDone(false);
-      else if (e.key === '2') onDone(true);
+        finish(ok);
+      } else if (e.key === '1') finish(false);
+      else if (e.key === '2') finish(true);
       return;
     }
     if (step === 'mean' && !judged && /^[1-4]$/.test(e.key)) return pick(choices[+e.key - 1]);
@@ -266,7 +291,7 @@ export function Check({ w, pool, idx, cards, review, onDone, onExit, onConfuse }
           <>
             <small className="sub">뜻으로 알맞은 것은?</small>
             <div className="ln-q__w" lang="ja">{w.w}</div>
-            {res.read !== undefined && <div className="ln-q__r" lang="ja">{w.r}</div>}
+            {(res.read !== undefined || judged) && <div className="ln-q__r" lang="ja">{w.r}</div>}
             <div className="wd-choices">
               {choices.map((c, i) => (
                 <button key={c} type="button" className={`wd-ch ${judged ? (c === w.m ? 'is-right' : c === picked ? 'is-wrong' : '') : ''}`} onClick={() => pick(c)} disabled={judged && c !== picked && c !== w.m}>
@@ -282,10 +307,10 @@ export function Check({ w, pool, idx, cards, review, onDone, onExit, onConfuse }
       </div>
       {step === 'done' ? (
         <div className="ln-two">
-          <button type="button" className={`ln-g ln-g--ng ${!ok ? 'is-auto' : ''}`} onClick={() => onDone(false)}>
+          <button type="button" className={`ln-g ln-g--ng ${!ok ? 'is-auto' : ''}`} onClick={() => finish(false)}>
             <b>몰랐음</b><small>10분 뒤 다시</small><kbd>1</kbd>
           </button>
-          <button type="button" className={`ln-g ln-g--ok ${ok ? 'is-auto' : ''}`} onClick={() => onDone(true)}>
+          <button type="button" className={`ln-g ln-g--ok ${ok ? 'is-auto' : ''}`} onClick={() => finish(true)}>
             <b>알았음</b><small>{ok ? '둘 다 맞힘' : '실수였어요'}</small><kbd>2</kbd>
           </button>
         </div>
@@ -301,7 +326,7 @@ export function Check({ w, pool, idx, cards, review, onDone, onExit, onConfuse }
 }
 
 /* ───────── 오늘 단어 ───────── */
-export function Study({ words, pool, newPerDay, revCap = 0, autoSpeak, onDone, onMore }) {
+export function Study({ words, pool, newPerDay, revCap = 0, autoSpeak, readMode, onDone, onMore }) {
   const cards = useData('words');
   const cardsRef = useRef(cards);
   cardsRef.current = cards;
@@ -312,7 +337,7 @@ export function Study({ words, pool, newPerDay, revCap = 0, autoSpeak, onDone, o
 
   // phase: review 복습 · intro 새 단어 보기 · quiz 새 단어 퀴즈 · end
   const [st, setSt] = useState(() => ({ phase: 'review', list: reviewIds(ids, cards, today, Date.now(), revCap), pos: 0, batch: [], key: 0 }));
-  const [stat, setStat] = useState({ rev: 0, ok: 0, fresh: 0, known: 0 });
+  const [stat, setStat] = useState({ rev: 0, ok: 0, fresh: 0, known: 0, fast: 0 });
   const timer = useRef(null);
   useEffect(() => {
     timer.current = startTimer('vocab', '단어 공부');
@@ -343,13 +368,13 @@ export function Study({ words, pool, newPerDay, revCap = 0, autoSpeak, onDone, o
   const w = byId[id];
 
   /* 복습 하나 끝 */
-  const reviewed = (ok) => {
+  const reviewed = (ok, info = {}) => {
     const c = cardsRef.current[id];
-    const next = clean(answer(c, ok, today, Date.now(), EXAM_DATE));
+    const next = clean(answer(c, ok, today, Date.now(), EXAM_DATE, info));
     save('words', id, () => next);
     const learnedNow = ok && next.i >= 7 && (c?.i || 0) < 7 ? 1 : 0;
     timer.current?.add({ n: 1, ok: ok ? 1 : 0, learned: learnedNow });
-    setStat((s) => ({ ...s, rev: s.rev + 1, ok: s.ok + (ok ? 1 : 0) }));
+    setStat((s) => ({ ...s, rev: s.rev + 1, ok: s.ok + (ok ? 1 : 0), fast: s.fast + (ok && info.fast && !c?.ls ? 1 : 0) }));
     if (st.pos + 1 < st.list.length) setSt((s) => ({ ...s, pos: s.pos + 1 }));
     else advance({ [id]: next });
   };
@@ -409,7 +434,7 @@ export function Study({ words, pool, newPerDay, revCap = 0, autoSpeak, onDone, o
         <section className="card wd-end">
           <b className="wd-end__t">오늘 몫 끝!</b>
           <div className="wd-today__nums">
-            <div><b className="num wd-c-due">{stat.rev}</b><small>복습 · 알았음 {stat.ok}</small></div>
+            <div><b className="num wd-c-due">{stat.rev}</b><small>복습 · 알았음 {stat.ok}{stat.fast ? ` · 빨리 ${stat.fast}` : ''}</small></div>
             <div><b className="num wd-c-new">{stat.fresh}</b><small>새로 배움</small></div>
             <div><b className="num">{stat.known}</b><small>이미 알아요</small></div>
           </div>
@@ -446,7 +471,7 @@ export function Study({ words, pool, newPerDay, revCap = 0, autoSpeak, onDone, o
           </div>
         </>
       ) : (
-        <Check key={`${st.key}-${st.pos}-${id}`} w={w} pool={pool} idx={idx} cards={cards} review={st.phase === 'review'} onDone={st.phase === 'review' ? reviewed : quizzed} onExit={onDone} onConfuse={(other) => save('words', id, (c) => addConfused(c, other))} />
+        <Check key={`${st.key}-${st.pos}-${id}`} w={w} pool={pool} idx={idx} cards={cards} review={st.phase === 'review'} readMode={readMode} onDone={st.phase === 'review' ? reviewed : quizzed} onExit={onDone} onConfuse={(other) => save('words', id, (c) => addConfused(c, other))} />
       )}
     </div>
   );

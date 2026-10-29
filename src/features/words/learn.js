@@ -88,6 +88,19 @@ export const sameReading = (input, r) => tidy(finishKana(tidy(input))) === tidy(
 // 읽기를 입력해서 물을 단어인지 (한자가 있고 가타카나 말이 아닌 것)
 export const askReading = (w) => hasKanji(w.w) && !isKatakana(w.w) && w.r !== w.w;
 
+// 복습에서 읽기를 칠지 (prefs.main.readMode: 'smart' 기본 · 'all' 매번)
+//  · smart: 배우는 중 · 간격 7일 미만 · 읽기를 틀린 뒤(rx) · 세 번에 한 번 확인만 치고, 나머지는 뜻만 → 한 장이 훨씬 빨라짐
+export function needRead(w, c, mode = 'smart') {
+  if (!askReading(w)) return false;
+  if (mode === 'all' || !c?.t) return true;
+  return !!c.ls || (c.i || 0) < 7 || (c.rx || 0) > 0 || (c.n || 0) % 3 === 0;
+}
+
+// 빨리 맞혔는지 (쉬움으로 침): 뜻은 3초 안, 읽기는 4초 + 글자마다 0.6초 안
+export const FAST_MEAN_MS = 3000;
+export const isFast = (w, ms = {}) =>
+  ms.mean != null && ms.mean <= FAST_MEAN_MS && (ms.read == null || ms.read <= 4000 + 600 * [...(w?.r || '')].length);
+
 /* ───────── 뜻 4개 중 고르기 ───────── */
 const shuffle = (a, rnd = Math.random) => {
   const x = [...a];
@@ -161,6 +174,9 @@ export function forecast(cards, today, days = 7) {
   return out;
 }
 
+// 시험 7일 전까지 안 본 단어를 다 보려면 하루 몇 개 (10개 단위로 올림, 마지막 일주일은 복습만)
+export const paceNeed = (fresh, daysLeft) => (fresh > 0 ? Math.ceil(fresh / Math.max(1, daysLeft - 7) / 10) * 10 : 0);
+
 /* ───────── 안 외워지는 단어 ───────── */
 // 4번 넘게 틀렸고 아직 간격이 3주가 안 된 것. 3주 넘게 기억하면 저절로 빠짐
 export const LEECH_L = 4;
@@ -199,15 +215,20 @@ export function learned(card, today, now) {
   return { ...(card || {}), pri: undefined, t: today, f: card?.f || today, d: today, i: 0, n: 0, l: 0, e: 250, ls: 1, la: now + RELEARN_MIN * 60e3 };
 }
 
-// 복습 결과 (ok: 알았음/몰랐음)
+// 복습 결과 (ok: 알았음/몰랐음, info: { fast 빨리 맞힘 → 쉬움, read 읽기 맞힘 true/false/물어보지 않음 undefined })
 //  · 배우는 중 카드: 맞히면 졸업 — 처음 배운 것은 내일, 복습에서 틀렸던 것은 원래 간격(pi)의 절반 뒤 (WaniKani 처럼 처음부터 X)
 //  · 틀리면 오늘 안에 10분 뒤 한 번 더 (배우는 중으로 돌아감, 원래 간격은 pi 에 기억)
 //  · 기억 이야기(mn)·헷갈리는 짝(cf)은 그대로 둠
-export function answer(card, ok, today, now, exam) {
+//  · 빨리 맞힌 복습(fast)은 쉬움 → 간격이 더 길어짐 (이미 아는 단어에 쓰는 복습 줄이기)
+//  · 읽기를 틀리면 rx = 2 → 다음 두 번은 읽기를 꼭 침, 맞히면 하나씩 줄어듦
+export function answer(card, ok, today, now, exam, info = {}) {
   const c = card || {};
-  const keep = { f: c.f, mn: c.mn, cf: c.cf };
+  let rx = c.rx || 0;
+  if (info.read === false) rx = 2;
+  else if (info.read === true) rx = Math.max(0, rx - 1);
+  const keep = { f: c.f, mn: c.mn, cf: c.cf, rx: rx || undefined };
   if (c.ls) {
-    if (!ok) return { ...c, l: (c.l || 0) + 1, la: now + RELEARN_MIN * 60e3, t: today };
+    if (!ok) return { ...c, ...keep, l: (c.l || 0) + 1, la: now + RELEARN_MIN * 60e3, t: today };
     const g = grade({ e: c.e }, 3, today, exam); // 처음 배운 것처럼: 1일 뒤
     const out = { ...g, ...keep, l: c.l || 0, n: (c.n || 0) + 1 };
     if (c.pi > 1) {
@@ -218,7 +239,7 @@ export function answer(card, ok, today, now, exam) {
     }
     return out;
   }
-  const g = grade(c, ok ? 3 : 1, today, exam);
+  const g = grade(c, ok ? (info.fast ? 4 : 3) : 1, today, exam);
   const next = { ...g, ...keep };
   if (!ok) Object.assign(next, { d: today, ls: 1, la: now + RELEARN_MIN * 60e3, pi: c.i || 0 });
   return next;
