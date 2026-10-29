@@ -3,6 +3,9 @@
 //  · 시험 날짜가 있으면 간격이 시험 전날을 넘지 않게 줄임 → 시험 전에 한 번씩은 다시 봄
 import { addDays, diffDays, parse, ymd } from './dates';
 
+// 시험 날 (JLPT 2026년 12월)
+export const EXAM_DATE = '2026-12-06';
+
 export const GRADES = [
   { g: 1, label: '다시', key: '1' },
   { g: 2, label: '어려움', key: '2' },
