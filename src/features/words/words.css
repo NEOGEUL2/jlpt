@@ -127,3 +127,12 @@
 .wd-pace.is-short .sub b { color: var(--org); }
 .wd-pace .btn { justify-self: start; }
 .wd-note { font-size: 12.5px; }
+.wd-ch .wd-trap { margin-left: auto; white-space: nowrap; padding-left: 6px; font: 600 12px var(--kr); color: var(--red); }
+.pr-m { font-size: 20px; font-weight: 700; margin: 6px 0 10px; }
+.pr-cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+.pr-side { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; align-content: start; }
+.pr-side b { font-size: 18px; }
+.pr-side p { margin: 0; font-size: 14px; }
+.pr-side mark { background: none; color: var(--acc); font-weight: 700; }
+.pr-ex { font-size: 14px; }
+@media (max-width: 560px) { .pr-cmp { grid-template-columns: 1fr; } }

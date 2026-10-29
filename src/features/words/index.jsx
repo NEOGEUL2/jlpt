@@ -4,12 +4,15 @@ import { remove, save, saveMany, useData } from '../../lib/store';
 import { EXAM_DATE, maturity, queue } from '../../lib/srs';
 import { diffDays, todayStr } from '../../lib/dates';
 import { startTimer } from '../../lib/studylog';
-import { BASE, LEVELS, ORDERS, allWords, hasKanji, idsInOrder, unsorted, newToday, parsePaste, quizPick, readingChoices, splitExample } from './words';
+import { BASE, LEVELS, ORDERS, allWords, hasKanji, idsInOrder, unsorted, newToday, parsePaste, quizPick, splitExample } from './words';
+import { trapText, yomiChoices, yomiOk } from './yomi';
 import { Study } from './Learn';
 import { askReading, meaningOnly, paceNeed } from './learn';
 import { N1Quiz } from './N1Quiz';
 import { LeechStudy, ReviewPlan, capOf } from './Leech';
 import { KanjiStudy } from './Kanji';
+import { PairDrill } from './Pairs';
+import { noGuess } from './groups';
 import './words.css';
 
 const NEW_OPTS = [20, 30, 50, 100, 150, 200];
@@ -34,6 +37,21 @@ const setPrefs = (patch) => save('prefs', 'main', patch);
 export default function Words() {
   const [mode, setMode] = useState(null); // null 첫 화면 · 'cards' 오늘 단어 · 'n1' N1 모양 문제 · 'quiz' · 'add' · 'list'
   const [round, setRound] = useState(0);
+  // 다른 메뉴(시험)에서 바로 열기: sessionStorage 'jlpt:open' · 이벤트 'jlpt-open' (detail = mode)
+  useEffect(() => {
+    const MODES = ['cards', 'n1', 'quiz', 'sort', 'pairs', 'wago', 'kanji', 'onkun'];
+    const open = (m) => MODES.includes(m) && setMode(m);
+    try {
+      const m = sessionStorage.getItem('jlpt:open');
+      sessionStorage.removeItem('jlpt:open');
+      open(m);
+    } catch {
+      /* 없어도 됨 */
+    }
+    const on = (e) => open(e.detail);
+    window.addEventListener('jlpt-open', on);
+    return () => window.removeEventListener('jlpt-open', on);
+  }, []);
   const done = (next = null) => {
     setMode(next);
     setRound((r) => r + 1);
@@ -41,6 +59,8 @@ export default function Words() {
   if (mode === 'cards') return <StudyRoute onDone={() => done()} />;
   if (mode === 'n1') return <N1Route onDone={() => done()} />;
   if (mode === 'leech') return <LeechRoute onDone={() => done()} />;
+  if (mode === 'pairs') return <PairsRoute onDone={() => done()} />;
+  if (mode === 'wago') return <WagoRoute onDone={() => done()} />;
   if (mode === 'kanji' || mode === 'onkun') return <KanjiRoute start={mode === 'onkun' ? 'onkun' : 'rad'} onDone={() => done()} />;
   if (mode === 'sort') return <Sort key={round} onDone={done} />;
   if (mode === 'quiz') return <Quiz onDone={done} />;
@@ -65,6 +85,7 @@ function Home({ go }) {
   // 이 속도면 언제 다 보나 · 시험 7일 전까지 다 한 번씩 보려면 하루 몇 개 (마지막 일주일은 복습만)
   const daysNeed = Math.ceil(m.fresh / prefs.newPerDay);
   const pace = paceNeed(m.fresh, dd);
+  const nWago = useMemo(() => words.filter((w) => noGuess(w) && !cards[w.id]?.skip).length, [words]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="page wd">
       <header className="wd-top">
@@ -96,6 +117,13 @@ function Home({ go }) {
           <button type="button" className="btn" onClick={() => go('kanji')}>부수로 한자 보기</button>
           <button type="button" className="btn" onClick={() => go('onkun')}>음독·훈독 연습</button>
         </div>
+        <div className="row">
+          <button type="button" className="btn" onClick={() => go('wago')} title="훈독 말·히라가나 말·가타카나 말만 (N2·N1)">한자로 못 맞히는 말 · {nWago}개</button>
+          <button type="button" className="btn" onClick={() => go('pairs')} title="배운 단어 가운데 뜻이 겹치거나 헷갈렸던 짝">비슷한 말 구별</button>
+        </div>
+        {prefs.order !== 'kanji' && (
+          <p className="sub wd-note">팁: 새 단어 순서를 '아는 한자부터'로 바꾸면 N3에서 본 한자로 된 N2·N1 단어가 먼저 나와요. 한국 한자음으로 소리를 짐작할 수 있어 덜 낯설어요.</p>
+        )}
       </section>
 
       <ReviewPlan cards={cards} prefs={prefs} onCap={(n) => setPrefs({ revCap: n })} go={go} />
@@ -201,6 +229,21 @@ function N1Route({ onDone }) {
 function KanjiRoute({ start, onDone }) {
   const pool = useWords(true);
   return <KanjiStudy pool={pool} start={start} onDone={onDone} />;
+}
+function PairsRoute({ onDone }) {
+  const pool = useWords(true);
+  return <PairDrill pool={pool} onDone={onDone} />;
+}
+// 한자로 못 맞히는 말만 '오늘 단어' 처럼 (복습도 이 말들만). 이번에 새 단어 20개까지 더
+function WagoRoute({ onDone }) {
+  const words = useWords();
+  const all = useWords(true);
+  const prefs = usePrefs();
+  const cards = useData('words');
+  const list = useMemo(() => words.filter(noGuess), [words]);
+  const pool = useMemo(() => all.filter(noGuess), [all]);
+  const [limit, setLimit] = useState(() => newToday(cards, todayStr()) + 20);
+  return <Study words={list} pool={pool} newPerDay={limit} revCap={capOf(prefs)} autoSpeak={prefs.autoSpeak} readMode={prefs.readMode} onDone={onDone} onMore={(n) => setLimit((x) => x + n)} />;
 }
 function LeechRoute({ onDone }) {
   const pool = useWords(true);
@@ -310,8 +353,8 @@ function Quiz({ onDone }) {
   const cards = useData('words');
   const today = todayStr();
   const [list] = useState(() => {
-    const pick = quizPick(words, cards, 10);
-    return pick.map((w) => ({ w, choices: readingChoices(w, words) }));
+    const pick = quizPick(words.filter(yomiOk), cards, 10);
+    return pick.map((w) => ({ w, choices: yomiChoices(w, words) }));
   });
   const [pos, setPos] = useState(0);
   const [mine, setMine] = useState(null);
@@ -343,7 +386,7 @@ function Quiz({ onDone }) {
   useEffect(() => {
     const key = (e) => {
       if (!it) return;
-      if (!mine && /^[1-4]$/.test(e.key)) choose(it.choices[+e.key - 1]);
+      if (!mine && /^[1-4]$/.test(e.key)) choose(it.choices[+e.key - 1].r);
       else if (mine && (e.key === 'Enter' || e.key === ' ')) {
         e.preventDefault();
         next();
@@ -382,14 +425,15 @@ function Quiz({ onDone }) {
         <span className="num sub">{pos + 1}/{list.length}</span>
       </header>
       <div className="card wd-card is-open">
-        <p className="sub">밑줄 친 말의 읽는 법으로 알맞은 것은?</p>
+        <div className="ln-n1__p"><span lang="ja">＿＿＿の言葉の読み方として最もよいもの</span><small className="sub">시험 問題1 · 장음·촉음·탁음 함정에 주의</small></div>
         {it.w.ex && splitExample(it.w.ex, it.w.w)[1] ? (
           <p className="wd-q" lang="ja">{splitExample(it.w.ex, it.w.w)[0]}<u>{splitExample(it.w.ex, it.w.w)[1]}</u>{splitExample(it.w.ex, it.w.w)[2]}</p>
         ) : <div className="wd-card__w" lang="ja"><u>{it.w.w}</u></div>}
         <div className="wd-choices">
-          {it.choices.map((c, i) => (
+          {it.choices.map(({ r: c, traps }, i) => (
             <button key={c} type="button" lang="ja" className={`wd-ch ${mine ? (c === it.w.r ? 'is-right' : c === mine ? 'is-wrong' : '') : ''}`} onClick={() => choose(c)} disabled={!!mine && c !== mine && c !== it.w.r}>
               <span className="num">{i + 1}</span>{c}
+              {mine && traps.length > 0 && <small className="wd-trap" lang="ko">{trapText({ traps })}</small>}
             </button>
           ))}
         </div>

@@ -11,14 +11,14 @@
 ## 구조 (기능마다 폴더 하나)
 - 메뉴 등록: `src/features/index.js` 한 줄 `{ key, label, icon(한자 한 글자), C: lazy(() => import('./폴더')) }`
 - 화면: `src/features/<폴더>/index.jsx` (default export, props 없음) · 로직·데이터·CSS도 그 폴더 안
-  - `words/` 단어 카드 · `grammar/` 문법 퀴즈 · `reading/` 독해·청해 · `stats/` 공부 기록 · `settings/` 설정(서버 연결·로그인)
+  - `exam/` 시험(맨 위 메뉴) · `words/` 단어 카드 · `grammar/` 문법 퀴즈 · `reading/` 독해·청해 · `stats/` 공부 기록 · `settings/` 설정(서버 연결·로그인)
 - 단어 급수 목록 `words/lists/n3·n2·n1.tsv`(open-anki-jlpt-decks, MIT, NOTICE.md) + 한국어 뜻 `lists/ko.txt`(단어|읽기|뜻, 없으면 영어 뜻) · 고른 급수 `prefs.main.levels`
 - 공통 `src/lib/`: `store.js` 저장 · `supabase.js` 서버 연결 · `srs.js` 복습 주기(단어·문법 같이) · `dates.js` · `studylog.js` 공부 시간
-- 다른 메뉴로 보내기: `window.dispatchEvent(new CustomEvent('jlpt-go', { detail: 'words' }))`
+- 다른 메뉴로 보내기: `window.dispatchEvent(new CustomEvent('jlpt-go', { detail: 'words' }))` · 단어 안 화면까지: sessionStorage `jlpt:open` + 이벤트 `jlpt-open`(detail = mode: cards·n1·quiz·sort·pairs·wago·kanji·onkun)
 
 ## 저장 규칙
 - `useData(묶음)` → `{ id: 기록 }`, `save(묶음, id, patch)`, `remove(묶음, id)` (src/lib/store.js). localStorage 직접 쓰지 말 것 (기기별 화면 기억만 `jlpt:` 접두어)
-- 묶음: `words` 단어 복습 상태 · `own` 교재에서 넣은 단어 · `grammar` 문법 · `drill` 독해·청해 · `prefs` 설정(id 'main')
+- 묶음: `words` 단어 복습 상태 · `own` 교재에서 넣은 단어 · `grammar` 문법 · `drill` 독해·청해 · `mock` 문자·어휘 모의 기록 · `prefs` 설정(id 'main')
 - 기록마다 `u`(고친 시각)가 자동으로 붙고 기기 사이에선 u가 나중인 쪽이 이김. 서버 표 `jlpt_data`(SQL은 store.js `CLOUD_SQL`)
 - 공부 시간: `studylog.js` `logStudy({ part, sec, n, ok, learned, what })` · `startTimer(part, what, { idleMs })` → `{ add, finish, stop }` · React는 `useStudyTimer(part, what)` → `{ sec, paused, add, finish }`. 이 기기 `jlpt:study`·안 올린 것 `jlpt:study-q` → 서버 표 `study_log`(SQL `STUDY_SQL`, Girok sync.js 와 같게) → 기록 앱이 읽어서 보여 줌. 화면 `features/stats`(목표 `prefs.main.goalMin`)
 - **교재(다락원 한권으로 끝내기 N1) 내용은 저장소에 넣지 말 것** (공개 저장소). 교재에서 옮긴 단어·문제는 사용자 기록(`own` 등)으로만
@@ -50,3 +50,13 @@
 - 한자 공부(`Kanji.jsx`, 단어 첫 화면 '부수로 한자 보기'·'음독·훈독 연습' → mode 'kanji'·'onkun'): 틀린 단어(`l` 많은 순, 없으면 최근 본 단어 `myWords`)의 한자를 부수로 묶기 `radicalGroups`(한자 누르면 부품·음독·훈독·닮은 한자·같은 한자 단어) + 부수 퀴즈 · 음독/훈독 알아보는 법 + 맞히기 퀴즈 `makeOnKun`(음독·훈독·음+훈·훈+음)
 - 한자 자료 `lists/parts.txt`(字|부수 번호|부품|닮은 한자|음독|훈독) ← `python3 tools/parts-build.py <npm kanji 패키지 dist/data>` (KanjiVG·KANJIDIC2·kanjium, CC BY-SA, NOTICE.md). `kanjidic.js` PARTS·`readingKind(字, 소리)`(흐려짐·っ·훈독 명사꼴 たち 도 같게) → hanja.js 한자마다 나누기 점수에도 씀 · `kanji.js` 부수 214 한국 이름 `RAD_LIST`·변 모양 `VARIANT`, `radicalOf`·`partName`·`wordKinds`(type on·kun·jubako·yuto·mix·special)·`kindTip`. 한자 카드(KanjiParts)에 음독/훈독 표·부수
 - 테스트 `tests/learn.test.js` · `tests/kanji.test.js`
+
+## 시험 양식 대비 (`src/features/exam/` + words 몇 가지, 2026-10-29)
+- 사용자 수준: N3까지 익숙·뜻은 대충 짐작, 음독/훈독은 정확히 모름, N2·N1 단어는 모름 → 시험 모양으로 연습 + 한국 한자음 활용 + 짐작 안 되는 말 따로
+- 漢字読み 보기 `words/yomi.js` `yomiChoices`: 실제 시험처럼 함정 두 군데 2×2(重量 じゅうりょう·じゅりょう·しゅうりょう·しゅりょう). 함정은 한자 소리 칸 안에서만(`wordKinds` 칸, 오쿠리가나 X): 탁음·반탁음·작은 ゃゅょ·촉음(칸 끝 つくちき↔っ)·장음(음독 칸 끝)·같은 한자 다른 음독. 모자라면 끝 글자 같은 다른 단어 읽기. 보기마다 `traps` → 답 뒤 '장음·탁음' 표시(`trapText`). 단어 '한자 읽기 퀴즈'도 이것
+- 모의 `exam/mock.js` `makeMock(pool, cards, 'full'|'mini')`: 問題1 漢字読み 6 · 2 文脈規定 7 · 3 言い換え類義 6 · 4 用法 6 (mini 3·3·2·2). N3 빼고, 漢字読み 는 2글자+ 음독 말 위주 + 오쿠리가나 훈독 1개. 화면 `Mock.jsx`: 답은 끝나고 한꺼번에, 번호로 앞뒤 이동, 한 문제 30초 목표(`SEC_PER_Q`), 틀린 단어는 복습/새 단어 맨 앞. 기록 묶음 `mock` `{ id, day, at, kind, sec, parts: { yomi: [맞힘, 수] … }, wrong }` → 종류별 최근 5번 정답률·가장 약한 곳 연습 버튼
+- 날마다 할 일 `exam/plan.js`: 단계 익히기(~D-15, 미니 모의)·시험 모양(D-14~D-8, 모의 25)·마무리(D-7~D-1, 새 단어 없음). 체크는 저장 없이 다른 기록에서: 복습 남은 수·오늘 새 단어(`newToday`)·문법 studylog n·drill 오늘 기록·`dueWrong`·mock 오늘 기록
+- 새 단어 순서 '아는 한자부터'(`order: 'kanji'`, words.js `knownKanjiRate`): N2·N1을 N3 단어에 나온 한자 비율 높은 순(같은 비율 안은 섞인 순서 → 같은 한자끼리 몰리지 않음), N3는 뒤
+- 한자로 못 맞히는 말 `words/groups.js` `noGuess`(N2·N1·교재 중 훈독·湯桶·熟字訓·히라가나·가타카나 말) → 단어 첫 화면 버튼 → `Study`를 그 말들로만(복습도), 이번에 새 단어 20개
+- 비슷한 말 구별 `Pairs.jsx` + `confusablePairs`(배운 단어만: 헷갈렸던 짝 `cf` → 한국어 뜻 조각 겹치는 짝) · `pairQuiz`: 뜻 → 어느 말, 짝마다 앞 절반·뒤 절반에 떨어져 나옴, 저만 가진 뜻 조각이 있는 쪽만 물음. 답 뒤 두 말 나란히(다른 뜻 조각 굵게)
+- 테스트 `tests/yomi.test.js` · `tests/exam.test.js`
