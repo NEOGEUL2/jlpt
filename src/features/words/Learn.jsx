@@ -163,7 +163,7 @@ function useKeys(fn) {
 //  · 맞히면 잠깐 보여 주고 저절로 다음 (Enter·알았음 안 눌러도 됨). 틀렸을 때만 멈춤 → review 면 단어 보기 + 몰랐음/알았음
 //  · review 면 읽기는 needRead 일 때만 (readMode 'smart' · 'all')
 const AUTO_MS = 650;
-export function Check({ w, pool, idx, cards, review, readMode, onDone, onExit, onConfuse }) {
+export function Check({ w, pool, idx, cards, review, readMode, autoSpeak, onDone, onExit, onConfuse }) {
   const steps = useMemo(() => [...((review ? needRead(w, cards?.[w.id], readMode) : askReading(w)) ? ['read'] : []), 'mean'], [w]); // eslint-disable-line react-hooks/exhaustive-deps
   const [si, setSi] = useState(0);
   const [typed, setTyped] = useState('');
@@ -197,7 +197,7 @@ export function Check({ w, pool, idx, cards, review, readMode, onDone, onExit, o
     ms.current.read = Date.now() - t0.current;
     if (!giveUp) setTyped(finishKana(now));
     setRes((x) => ({ ...x, read: r }));
-    if (hasJa()) speak(w.r);
+    if (autoSpeak && hasJa()) speak(w.r); // 답할 때 소리는 설정에서 켠 경우만
     autoSaid.current = true;
   };
   const pick = (m) => {
@@ -210,7 +210,7 @@ export function Check({ w, pool, idx, cards, review, readMode, onDone, onExit, o
       const other = pool.find((x) => x.m === m && x.id !== w.id);
       if (other) onConfuse(other.id);
     }
-    if (!autoSaid.current && hasJa()) speak(w.r);
+    if (autoSpeak && !autoSaid.current && hasJa()) speak(w.r);
   };
   const next = () => {
     if (!judged) return;
@@ -471,7 +471,7 @@ export function Study({ words, pool, newPerDay, revCap = 0, autoSpeak, readMode,
           </div>
         </>
       ) : (
-        <Check key={`${st.key}-${st.pos}-${id}`} w={w} pool={pool} idx={idx} cards={cards} review={st.phase === 'review'} readMode={readMode} onDone={st.phase === 'review' ? reviewed : quizzed} onExit={onDone} onConfuse={(other) => save('words', id, (c) => addConfused(c, other))} />
+        <Check key={`${st.key}-${st.pos}-${id}`} w={w} pool={pool} idx={idx} cards={cards} review={st.phase === 'review'} readMode={readMode} autoSpeak={autoSpeak} onDone={st.phase === 'review' ? reviewed : quizzed} onExit={onDone} onConfuse={(other) => save('words', id, (c) => addConfused(c, other))} />
       )}
     </div>
   );

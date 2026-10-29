@@ -134,7 +134,7 @@ function Sound() {
       <div className="st-hd"><b>소리</b></div>
       {ja ? (
         <>
-          <label className="st-tog"><input type="checkbox" checked={!!p.autoSpeak} onChange={(e) => save('prefs', 'main', { autoSpeak: e.target.checked })} /> 카드 뒤집을 때 단어 읽어 주기</label>
+          <label className="st-tog"><input type="checkbox" checked={!!p.autoSpeak} onChange={(e) => save('prefs', 'main', { autoSpeak: e.target.checked })} /> 단어 소리 저절로 내기 (새 단어 볼 때·답할 때)</label>
           <button type="button" className="btn" onClick={() => speak('日本語能力試験に合格したい。')}>🔊 들어 보기</button>
         </>
       ) : (
