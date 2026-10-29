@@ -25,8 +25,11 @@
 
 ## 문법 퀴즈 (`src/features/grammar/`)
 - `data.js` N1 문법(직접 만든 것, 교재 내용 아님) `{ id, f 문법, m 뜻, c 접속, g 묶음, ex {j,k}, q {s '（　）' 자리, a 정답, w 틀린 보기 3} }` — 새 문법은 여기 더하고 `grammar.test.js` 통과 확인. id는 기록 열쇠라 바꾸지 말 것
-- `quiz.js` 문제 종류 fill 빈칸·mean 뜻·form 문법, 틀린 보기는 같은 묶음 먼저(뜻 조각 겹치면 뺌 `sameMeaning`), 결과 → 등급 `gradeOf`(틀림 1 · 12초+ 2 · 보통 3 · 4초 안 4)
-- `Quiz.jsx` 화면(저장 함수는 props로), `index.jsx`가 store '문법' 묶음·srs·studylog 이어 줌. 하루 새 문법 10개, 틀린 건 판 끝에 한 번 더(기록은 처음 푼 것만). 기기별 기억 `jlpt:gq-kinds`
+- `quiz.js` 문제 종류 fill 빈칸·star ★ 문장 만들기·mean 뜻·form 문법, 틀린 보기는 같은 묶음 먼저(뜻 조각 겹치면 뺌 `sameMeaning`), 결과 → 등급 `gradeOf`(틀림 1 · 12초+ 2 · 보통 3 · 4초 안 4)
+- `more.js` 문법마다 더 붙는 것(같은 id): `n` 비슷한 문법과 차이 · `qk` q 번역 · `x` 빈칸 문장 2개 `['…【답】…', 한국어, 틀린 보기 3]` · `st` ★ 문장 만들기 `[앞, 조각 4개(맞는 순서), 뒤, ★ 자리]`. 빈칸 문장은 볼 때마다 돌아감(`sentences`, 본 횟수 n+l), 다시 풀기는 다른 문장(`againOf`)
+- `gloss.js` `glossOf(보기)` → 답 화면 '보기 뜻'. 목록에 없는 보기는 `EXTRA`에 — 새 보기를 넣으면 테스트가 뜻 없는 보기를 알려 줌
+- 처음 보는 문법(`!cards[id].t`)은 소개 카드(Intro) 먼저, ★ 문제는 익숙해진 뒤에만. ★는 시험처럼 ★ 자리로 채점, 시간 기준 30초/10초
+- `Quiz.jsx` 화면(저장 함수는 props로), `index.jsx`가 store '문법' 묶음·srs·studylog 이어 줌. 하루 새 문법 10개, 틀린 건 판 끝에 한 번 더(기록은 처음 푼 것만), 홈에 '헷갈리는 묶음끼리 풀기'. 기기별 기억 `jlpt:gq-kinds`(+`jlpt:gq-star` ★를 예전 선택에 한 번 더해 줌)
 
 ## 독해·청해 (`src/features/reading/`)
 - 교재에서 푼 문제를 적는 곳(문제 본문은 안 넣음). 로직 `drill.js`(+`drill.test.js`), 화면 `index.jsx`(홈·적기·다시 풀기·오답 노트), CSS `reading.css`
