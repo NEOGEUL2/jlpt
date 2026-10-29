@@ -165,14 +165,18 @@ export function soundsOf(ch, n = 3) {
 }
 
 // 장음: 오단+う(どう·こう·ろう), 우단·요음+う(くう·きゅう·しょう), 에단+い(せい·けい), ー
+const A_ROW = 'あかがさざただなはばぱまやらわゃ';
+const I_ROW = 'いきぎしじちぢにひびぴみり';
 const O_ROW = 'おこごそぞとどのほぼぽもよろょ';
 const U_ROW = 'うくぐすずつづぬふぶぷむゆるゅ';
 const E_ROW = 'えけげせぜてでねへべぺめれ';
+// 앞 글자 단 → 길게 읽히는 다음 글자: ああ · いい · うう/おう · えい/ええ · おお (+ ー)
+const LONG_AFTER = [[A_ROW, 'あ'], [I_ROW, 'い'], [U_ROW, 'う'], [O_ROW, 'うお'], [E_ROW, 'いえ']];
 export function longAt(part) {
   const out = [];
   [...part].forEach((c, i, a) => {
     const p = a[i - 1];
-    if (c === 'ー' || (c === 'う' && p && (O_ROW.includes(p) || U_ROW.includes(p))) || (c === 'い' && p && E_ROW.includes(p))) out.push(i);
+    if (c === 'ー' || (p && LONG_AFTER.some(([row, v]) => row.includes(p) && v.includes(c)))) out.push(i);
   });
   return out;
 }
@@ -180,7 +184,9 @@ export const isLong = (part) => longAt(part).length > 0;
 
 // 한국 음과 장음 맞춰 보기: ㅇ·ㅂ 받침이면 길게가 규칙, 받침 없는데 길면 주의 (음독 모양일 때만)
 export function longNote(ko, part) {
-  if (!ON_SHAPE.test(part)) return '';
+  // ちい(小)·にい(兄)·おお(大) 같은 ああ·いい·ええ·おお 장음은 훈독 → 한국 음과 상관없음
+  const onLong = (c, i) => (c === 'う' && (O_ROW + U_ROW).includes(part[i - 1])) || (c === 'い' && E_ROW.includes(part[i - 1]));
+  if (!ON_SHAPE.test(part) || longAt(part).some((i) => !onLong(part[i], i))) return '';
   const s = (ko || '').split('·')[0];
   const code = s ? s.charCodeAt(0) - 0xac00 : -1;
   if (code < 0 || code > 11171) return '';
