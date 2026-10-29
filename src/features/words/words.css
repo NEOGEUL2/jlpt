@@ -1,0 +1,100 @@
+/* 단어 화면 (src/features/words) */
+.wd { max-width: 760px; }
+.wd-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.wd-dd { margin-left: auto; font-weight: 700; font-size: 13px; padding: 4px 10px; border-radius: 99px; background: var(--cell); }
+.wd-hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.wd-hd b { font-size: 16px; }
+.wd-hd small { color: var(--sub); font-size: 13px; }
+.wd-warn { color: var(--org); }
+
+/* 오늘 */
+.wd-today { gap: 16px; padding: 22px; }
+.wd-today__nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.wd-today__nums > div { display: grid; justify-items: start; }
+.wd-today__nums b { font-size: 34px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
+.wd-today__nums small { color: var(--sub); font-size: 13px; }
+.wd-c-due { color: var(--grn); }
+.wd-c-new { color: var(--blu); }
+.wd-start { justify-self: stretch; }
+.wd-clear b { font-size: 17px; }
+
+/* 익힌 정도 */
+.wd-bar { height: 12px; }
+.wd-leg { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--sub); }
+.wd-leg i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+/* 카드 공부 */
+.wd-sess { min-height: 100%; grid-template-rows: auto 1fr auto; }
+.wd-sess__top { display: flex; align-items: center; gap: 12px; }
+.wd-sess__top .btn { padding: 6px 12px; }
+.wd-sess__bar { flex: 1; }
+.wd-card { min-height: 360px; align-content: center; justify-items: center; text-align: center; padding: 28px 22px; gap: 14px; cursor: pointer; user-select: none; position: relative; }
+.wd-card.is-open { cursor: default; user-select: text; }
+.wd-card__tag { position: absolute; top: 14px; left: 14px; display: flex; gap: 6px; }
+.wd-pill { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--cell); color: var(--sub); white-space: nowrap; }
+.wd-pill--new { background: color-mix(in srgb, var(--blu) 16%, transparent); color: var(--blu); }
+.wd-pill--known { background: color-mix(in srgb, var(--grn) 16%, transparent); color: var(--grn); }
+.wd-pill--learn { background: color-mix(in srgb, var(--org) 18%, transparent); color: var(--org); }
+.wd-card__w { font-size: clamp(40px, 9vw, 64px); font-weight: 700; line-height: 1.2; letter-spacing: 0.02em; }
+.wd-card__back { display: grid; gap: 10px; justify-items: center; animation: wd-in 0.18s ease-out; }
+@keyframes wd-in { from { opacity: 0; transform: translateY(4px); } }
+.wd-card__r { font-size: 22px; color: var(--sub); }
+.wd-card__m { font-size: 20px; font-weight: 700; }
+.wd-card__ex { margin-top: 6px; padding-top: 12px; border-top: 1px dashed var(--line); display: grid; gap: 4px; max-width: 34em; }
+.wd-card__ex p { margin: 0; }
+.wd-card__ex p[lang='ja'] { font-size: 17px; }
+.wd-card__ex mark, .wd-q u { background: none; color: inherit; font-weight: 700; text-decoration: underline 2px var(--org); text-underline-offset: 4px; }
+.wd-card__hint kbd, .wd-g kbd { font: 600 10.5px var(--kr); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--line); color: var(--sub); }
+.wd-card__say { justify-content: center; }
+.wd-card__say .btn { font-size: 13px; padding: 6px 12px; }
+
+.wd-grades { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; position: sticky; bottom: 8px; }
+.wd-grades--front { grid-template-columns: 1fr; }
+.wd-grades--front .btn { justify-self: stretch; }
+.wd-grades--front:has(> :nth-child(2)) { grid-template-columns: 2fr 1fr; }
+.wd-g { display: grid; justify-items: center; gap: 1px; border: 0; border-radius: 14px; padding: 12px 4px 10px; cursor: pointer; background: var(--surf); box-shadow: var(--shadow); border-top: 3px solid var(--c); }
+.wd-g b { font-size: 15px; color: var(--c); }
+.wd-g small { font-size: 12px; color: var(--sub); }
+.wd-g:hover { background: color-mix(in srgb, var(--c) 10%, var(--surf)); }
+.wd-g--1 { --c: var(--red); }
+.wd-g--2 { --c: var(--org); }
+.wd-g--3 { --c: var(--grn); }
+.wd-g--4 { --c: var(--blu); }
+@media (hover: none) { .wd-g kbd, .wd-card__hint kbd { display: none; } }
+
+/* 끝 */
+.wd-end { justify-items: start; gap: 14px; padding: 24px; }
+.wd-end__t { font-size: 24px; }
+.wd-wrong { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; width: 100%; }
+.wd-wrong li { display: flex; gap: 10px; align-items: baseline; padding: 8px 10px; border-radius: 10px; background: var(--bg); }
+.wd-wrong small { color: var(--sub); margin-left: auto; text-align: right; }
+
+/* 퀴즈 */
+.wd-q { font-size: 21px; line-height: 1.7; margin: 6px 0; max-width: 30em; }
+.wd-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; max-width: 520px; }
+.wd-ch { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); background: var(--bg); border-radius: 12px; padding: 13px 14px; font-size: 18px; cursor: pointer; text-align: left; }
+.wd-ch span { font: 700 12px var(--kr); color: var(--sub); }
+.wd-ch:hover:not(:disabled) { border-color: var(--ink); }
+.wd-ch.is-right { border-color: var(--grn); background: color-mix(in srgb, var(--grn) 14%, var(--bg)); }
+.wd-ch.is-wrong { border-color: var(--red); background: color-mix(in srgb, var(--red) 12%, var(--bg)); }
+.wd-ch:disabled { opacity: 0.45; cursor: default; }
+.wd-fb { display: grid; gap: 4px; }
+.wd-ok { color: var(--grn); }
+.wd-ng { color: var(--red); }
+
+/* 넣기 · 단어장 */
+.wd-eg { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); font-size: 13px; white-space: pre-wrap; color: var(--sub); }
+.wd-bad { margin: 0; padding-left: 18px; color: var(--red); font-size: 13px; }
+.wd-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.wd-list li { display: grid; grid-template-columns: minmax(80px, auto) minmax(70px, auto) 1fr auto auto; gap: 10px; align-items: baseline; padding: 9px 2px; border-bottom: 1px solid var(--line); }
+.wd-list b { font-size: 17px; }
+.wd-list__m { font-size: 14px; }
+.wd-x { border: 0; background: none; color: var(--sub); font-size: 12px; cursor: pointer; text-decoration: underline; }
+@media (max-width: 560px) {
+  .wd-list li { grid-template-columns: auto 1fr auto; }
+  .wd-list__m { grid-column: 1 / -1; order: 5; }
+  .wd-list .wd-x { order: 6; }
+  .wd-choices { grid-template-columns: 1fr; }
+  .wd-g { padding: 10px 2px 8px; }
+  .wd-card { min-height: 300px; }
+}
