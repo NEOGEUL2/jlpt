@@ -25,6 +25,11 @@ describe('로마자 → 히라가나', () => {
     expect(sameReading('ツチカウ', 'つちかう')).toBe(true);
     expect(sameReading('tsuchikau', 'つちかう')).toBe(true);
     expect(sameReading('tsuchigau', 'つちかう')).toBe(false);
+    // 전각 글자·보이지 않는 글자·띄어쓰기
+    expect(sameReading('ちく\u200b', 'ちく')).toBe(true);
+    expect(sameReading(' ちく ', 'ちく')).toBe(true);
+    expect(sameReading('ｃｈｉｋｕ', 'ちく')).toBe(true);
+    expect(sameReading('ﾁｸ', 'ちく')).toBe(true);
   });
 });
 

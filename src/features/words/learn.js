@@ -80,7 +80,9 @@ export function toKana(input) {
 export const finishKana = (input) => toKana(input).replace(/n$/, 'ん');
 
 export const toHira = (s) => String(s || '').replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
-export const sameReading = (input, r) => toHira(finishKana(input)).replace(/\s/g, '') === toHira(r).replace(/\s/g, '');
+// 비교 전에 다듬기: 전각 글자·보이지 않는 글자·띄어쓰기 빼고, 가타카나는 히라가나로
+const tidy = (s) => toHira(String(s || '').normalize('NFKC')).replace(/[\s\u200b-\u200f\u2060\ufeff]/g, '');
+export const sameReading = (input, r) => tidy(finishKana(tidy(input))) === tidy(r);
 
 // 읽기를 입력해서 물을 단어인지 (한자가 있고 가타카나 말이 아닌 것)
 export const askReading = (w) => hasKanji(w.w) && !isKatakana(w.w) && w.r !== w.w;
