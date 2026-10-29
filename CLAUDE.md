@@ -43,4 +43,7 @@
 - 로마자 → 히라가나 `toKana`(치는 중) · `finishKana` · `sameReading`(가타카나도 같게)
 - 한자 한국 음·훈 `lists/hanja.txt`(字|음|훈|옛 글자) ← `python3 tools/hanja-build.py <libhangul hanja.txt> <cjkvi jp-old-style.txt>` (출처 NOTICE.md). 받침 → 음독 규칙 `onHint`, 같은 한자 단어 `siblings`(본 단어 먼저)
 - N1 모양 문제 `makeQuiz`: ctx 문맥(빈칸, 활용 꼬리 `slotOf`) · para 言い換え(한국어 뜻 조각 겹치는 단어) · use 用法(명사·형용사·부사만, 다른 예문에 넣은 것이 틀린 보기). 틀린 단어는 10분 뒤 복습 / 안 배운 건 `pri`
+- 복습 관리(Leech.jsx): 첫 화면 `ReviewPlan` 앞으로 7일 복습 `forecast` · 하루 상한 `prefs.main.revCap`(기본 200, 0 = 없음, `reviewIds(…, cap)` 배우는 중은 다·나머지는 간격 짧은 것부터, 넘친 건 날짜 안 바꾸고 다음 날) · 틀린 복습은 원래 간격을 `pi`에 기억 → 다시 맞히면 절반 뒤
+- 안 외워지는 단어 `isLeech`(틀림 `l` ≥ 4, 간격 3주 미만) → `LeechStudy`(헷갈린 짝 `cf` = 뜻 고르기에서 대신 고른 단어 최근 3개, 나만의 기억 이야기 `mn` → 틀리면 힌트로). 이 화면은 복습 날짜를 안 바꿈
+- 장음: `hanja.js readingParts(단어, 읽기)` = 단어 목록 전체로 한자별 소리를 세서(onTable) 읽기를 한자마다 나눔(道=どう·路=ろ), `longAt`·`isLong`(오단·우단+う, 에단+い, ー), `longNote`(한국 음 받침 ㅇ·ㅂ → 길게가 규칙, 받침 없는데 길면 '외워 두기'), `soundsOf` 다른 말에서 읽는 소리
 - 테스트 `tests/learn.test.js`

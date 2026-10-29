@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BASE } from '../src/features/words/words';
-import { answer, finishKana, learned, meaningChoices, newIds, reviewIds, sameReading, toKana, waitingInfo } from '../src/features/words/learn';
-import { kanjiIndex, kanjiInfo, kanjiOf, onHint, siblings } from '../src/features/words/hanja';
+import { addConfused, answer, finishKana, forecast, isLeech, learned, meaningChoices, newIds, reviewIds, reviewedToday, sameReading, toKana, waitingInfo } from '../src/features/words/learn';
+import { isLong, kanjiIndex, kanjiInfo, kanjiOf, longAt, longNote, onHint, readingParts, siblings, soundsOf } from '../src/features/words/hanja';
 import { makeQuiz, slotOf } from '../src/features/words/n1quiz';
 
 const seq = (seed = 1) => () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -126,5 +126,66 @@ describe('N1 모양 문제', () => {
       if (q.type === 'para') expect(q.options[q.answer].text).toBe(q.syn.w);
       if (q.type === 'use') expect(q.options[q.answer].sent.join('')).toBe(q.word.ex);
     }
+  });
+});
+
+describe('복습 강화', () => {
+  const today = '2026-10-29';
+  const now = 1_800_000_000_000;
+  const due = (i, d = today, extra = {}) => ({ t: '2026-10-20', f: '2026-10-01', d, i, e: 250, n: 2, l: 0, ...extra });
+  it('하루 상한: 배우는 중은 다, 나머지는 간격 짧은 것부터 남은 만큼', () => {
+    const cards = { a: due(10), b: due(1), c: due(3), d: due(0, today, { ls: 1, la: now - 1 }), e: { t: today, f: '2026-10-01', d: '2026-11-01', i: 3 } };
+    expect(reviewIds(Object.keys(cards), cards, today, now)).toEqual(['d', 'b', 'c', 'a']);
+    expect(reviewedToday(cards, today)).toBe(1);
+    expect(reviewIds(Object.keys(cards), cards, today, now, 3)).toEqual(['d', 'b', 'c']);
+    expect(reviewIds(Object.keys(cards), cards, today, now, 1)).toEqual(['d']);
+  });
+  it('앞으로 7일 복습량 (밀린 것은 오늘)', () => {
+    const cards = { a: due(1, '2026-10-20'), b: due(1, '2026-10-30'), c: due(1, '2026-11-04'), d: due(1, '2026-11-20'), s: { skip: 1, t: today, d: '9999-12-31' } };
+    const fc = forecast(cards, today, 7);
+    expect(fc.map((x) => x.n)).toEqual([1, 1, 0, 0, 0, 0, 1]);
+    expect(fc[6].d).toBe('2026-11-04');
+  });
+  it('틀려도 처음부터가 아니라 원래 간격의 절반', () => {
+    const c = due(12);
+    const ng = answer(c, false, today, now, '2026-12-06');
+    expect(ng.pi).toBe(12);
+    const ok = answer(ng, true, today, now + 601e3, '2026-12-06');
+    expect(ok).toMatchObject({ i: 6, d: '2026-11-04' });
+    expect(ok.pi).toBeUndefined();
+    expect(ok.ls).toBeUndefined();
+  });
+  it('안 외워지는 단어 · 헷갈리는 짝 · 기억 이야기는 복습해도 남음', () => {
+    expect(isLeech(due(5, today, { l: 4 }))).toBe(true);
+    expect(isLeech(due(25, today, { l: 6 }))).toBe(false);
+    expect(isLeech(due(5, today, { l: 3 }))).toBe(false);
+    let c = addConfused(due(5, today, { mn: '흙에 북돋아' }), 'x');
+    c = addConfused(c, 'y');
+    c = addConfused(c, 'x');
+    expect(c.cf).toEqual(['x', 'y']);
+    const next = answer(c, true, today, now, '2026-12-06');
+    expect(next).toMatchObject({ mn: '흙에 북돋아', cf: ['x', 'y'] });
+  });
+});
+
+describe('장음 · 한자마다 읽는 소리', () => {
+  it('단어 읽기를 한자마다 나눔', () => {
+    const r = (w, rd) => readingParts(w, rd).map((p) => (p.k ? `${p.k}=${p.r}` : p.kana)).join(' ');
+    expect(r('道路', 'どうろ')).toBe('道=どう 路=ろ');
+    expect(r('経営', 'けいえい')).toBe('経=けい 営=えい');
+    expect(r('急増', 'きゅうぞう')).toBe('急=きゅう 増=ぞう');
+    expect(r('取り扱う', 'とりあつかう')).toBe('取=と り 扱=あつか う');
+    expect(soundsOf('道')[0].r).toBe('どう');
+  });
+  it('장음 자리와 한국 음 받침 규칙', () => {
+    expect(longAt('どう')).toEqual([1]);
+    expect(longAt('きゅう')).toEqual([2]);
+    expect(longAt('せい')).toEqual([1]);
+    expect(isLong('さい')).toBe(false);
+    expect(isLong('ろ')).toBe(false);
+    expect(longNote('도', 'どう')).toBe('받침 없는데 길게 · 외워 두기');
+    expect(longNote('로', 'ろ')).toBe('받침 없음 → 짧게');
+    expect(longNote('영', 'えい')).toBe('받침 ㅇ → 길게 (규칙대로)');
+    expect(longNote('급', 'きゅう')).toBe('받침 ㅂ → 길게 (규칙대로)');
   });
 });

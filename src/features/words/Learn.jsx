@@ -6,8 +6,8 @@ import { todayStr } from '../../lib/dates';
 import { hasJa, speak } from '../../lib/speak';
 import { startTimer } from '../../lib/studylog';
 import { isKatakana, newToday, splitExample } from './words';
-import { BATCH, answer, askReading, clean, finishKana, learned, meaningChoices, newIds, reviewIds, sameReading, toKana, waitingInfo } from './learn';
-import { kanjiIndex, kanjiInfo, kanjiOf, onHint, siblings } from './hanja';
+import { BATCH, addConfused, answer, askReading, clean, finishKana, isLeech, learned, meaningChoices, newIds, reviewIds, sameReading, toKana, waitingInfo } from './learn';
+import { isLong, kanjiIndex, kanjiInfo, kanjiOf, longAt, longNote, onHint, readingParts, siblings, soundsOf } from './hanja';
 import './learn.css';
 
 const shuffle = (a) => {
@@ -26,13 +26,41 @@ export function Ex({ ex, w }) {
 }
 
 // 한자 하나씩: 字 · 한국 음 · 훈 (옛 글자) · 받침 규칙
-export function KanjiParts({ w, hints }) {
+// 읽기에서 장음(どう·せい·きゅう) 글자를 표시
+export function LongKana({ text }) {
+  const at = new Set(longAt(text));
+  return <>{[...text].map((c, i) => (at.has(i) ? <mark key={i} className="ln-long">{c}</mark> : c))}</>;
+}
+// 단어 읽기를 한자마다 나눠서 (どう·ろ), 장음 표시
+export function ReadingSplit({ w, r }) {
+  const parts = readingParts(w, r);
+  if (!parts) return <LongKana text={r} />;
+  return (
+    <>
+      {parts.map((p, i) => (
+        <span key={i} className={p.k ? 'ln-rp' : 'ln-rp ln-rp--kana'}>
+          {i > 0 && p.k && parts[i - 1].k && <i className="ln-rp__dot">·</i>}
+          <LongKana text={p.k ? p.r : p.kana} />
+        </span>
+      ))}
+    </>
+  );
+}
+
+// 한자 하나씩: 字 · 한국 음 · 훈 (옛 글자) · 이 단어에서 읽는 소리(장음 표시) · 한국 음 받침과 장음 규칙
+export function KanjiParts({ w, r, hints }) {
   const ks = kanjiOf(w);
   if (!ks.length || isKatakana(w)) return null;
+  const parts = r ? readingParts(w, r) : null;
+  const here = new Map();
+  for (const p of parts || []) if (p.k && !here.has(p.k)) here.set(p.k, p.r);
   return (
     <div className="ln-kj">
       {ks.map((ch) => {
         const k = kanjiInfo(ch);
+        const part = here.get(ch);
+        const note = part && !k.kokuji ? longNote(k.ko, part) : '';
+        const others = hints && part ? soundsOf(ch, 3).filter((x) => x.r !== part).slice(0, 2) : [];
         return (
           <div key={ch} className="ln-kj__c">
             <b lang="ja">{ch}</b>
@@ -42,9 +70,16 @@ export function KanjiParts({ w, hints }) {
               <>
                 <span className="ln-kj__ko">{k.ko}</span>
                 <small>{k.hun}{k.old && <> · <span lang="ja">{k.old}</span></>}</small>
-                {hints && onHint(k.ko) && <em>{onHint(k.ko)}</em>}
               </>
             )}
+            {part && (
+              <span className={`ln-kj__here ${isLong(part) ? 'is-long' : ''}`} lang="ja">
+                <LongKana text={part} />
+                <small lang="ko">{isLong(part) ? ' 길게' : ' 짧게'}</small>
+              </span>
+            )}
+            {note ? <em className={note.includes('외워') ? 'is-warn' : ''}>{note}</em> : !part && hints && !k.kokuji && onHint(k.ko) && <em>{onHint(k.ko)}</em>}
+            {others.length > 0 && <small className="ln-kj__oth">다른 말에선 <span lang="ja">{others.map((x) => x.r).join(' · ')}</span></small>}
           </div>
         );
       })}
@@ -87,13 +122,14 @@ function Say({ w }) {
 }
 
 // 단어 전체 (배우기 화면 · 답 확인)
-export function WordInfo({ w, idx, cards, big }) {
+export function WordInfo({ w, idx, cards, big, memo = true }) {
   return (
     <div className={`ln-info ${big ? 'is-big' : ''}`}>
       <div className="ln-info__w" lang="ja">{w.w}</div>
-      {!isKatakana(w.w) && w.r !== w.w && <div className="ln-info__r" lang="ja">{w.r}</div>}
+      {!isKatakana(w.w) && w.r !== w.w && <div className="ln-info__r" lang="ja"><ReadingSplit w={w.w} r={w.r} /></div>}
       <div className="ln-info__m">{w.m}{w.en && <span className="wd-pill wd-en" title="한국어 뜻을 아직 못 넣은 단어예요">영어 뜻</span>}</div>
-      <KanjiParts w={w.w} hints={big} />
+      <KanjiParts w={w.w} r={w.r} hints={big} />
+      {memo && <Memo text={cards?.[w.id]?.mn} />}
       {w.ex && (
         <div className="ln-info__ex">
           <p lang="ja"><Ex ex={w.ex} w={w.w} /></p>
@@ -104,6 +140,12 @@ export function WordInfo({ w, idx, cards, big }) {
       <Siblings word={w} idx={idx} cards={cards} />
     </div>
   );
+}
+
+// 나만의 기억 이야기 (안 외워지는 단어 화면에서 적음)
+function Memo({ text }) {
+  if (!text) return null;
+  return <p className="ln-memo"><small>내 기억 이야기</small>{text}</p>;
 }
 
 /* ───────── 확인: 읽기 입력 → 뜻 고르기 ───────── */
@@ -118,7 +160,7 @@ function useKeys(fn) {
 }
 
 // onDone(ok) — ok: 읽기·뜻 둘 다 맞힘. review 면 마지막에 몰랐음/알았음 버튼
-function Check({ w, pool, idx, cards, review, onDone, onExit }) {
+export function Check({ w, pool, idx, cards, review, onDone, onExit, onConfuse }) {
   const steps = useMemo(() => [...(askReading(w) ? ['read'] : []), 'mean'], [w]);
   const [si, setSi] = useState(0);
   const [typed, setTyped] = useState('');
@@ -146,6 +188,11 @@ function Check({ w, pool, idx, cards, review, onDone, onExit }) {
     if (judged) return;
     setPicked(m);
     setRes((x) => ({ ...x, mean: m === w.m }));
+    // 잘못 고른 뜻의 단어 = 헷갈리는 짝
+    if (m && m !== w.m && onConfuse) {
+      const other = pool.find((x) => x.m === m && x.id !== w.id);
+      if (other) onConfuse(other.id);
+    }
     if (!autoSaid.current && hasJa()) speak(w.r);
   };
   const next = () => {
@@ -207,9 +254,10 @@ function Check({ w, pool, idx, cards, review, onDone, onExit }) {
             </form>
             {judged && (
               <div className="ln-fb">
-                <b className={res.read ? 'wd-ok' : 'wd-ng'}>{res.read ? '맞았어요' : <>정답 <span lang="ja">{w.r}</span></>}</b>
+                <b className={res.read ? 'wd-ok' : 'wd-ng'}>{res.read ? '맞았어요' : <>정답 <span lang="ja"><ReadingSplit w={w.w} r={w.r} /></span></>}</b>
                 {!res.read && <button type="button" className="btn ln-idk" onClick={() => setRes((x) => ({ ...x, read: true }))}>맞게 썼어요 (맞음으로)</button>}
-                {!res.read && <KanjiParts w={w.w} hints />}
+                {!res.read && <Memo text={cards?.[w.id]?.mn} />}
+                {!res.read && <KanjiParts w={w.w} r={w.r} hints />}
               </div>
             )}
           </>
@@ -227,6 +275,7 @@ function Check({ w, pool, idx, cards, review, onDone, onExit }) {
               ))}
             </div>
             {!judged && <button type="button" className="btn ln-idk" onClick={() => pick(null)}>모르겠어요</button>}
+            {judged && !res.mean && <Memo text={cards?.[w.id]?.mn} />}
           </>
         )}
         {step === 'done' && <WordInfo w={w} idx={idx} cards={cards} />}
@@ -252,7 +301,7 @@ function Check({ w, pool, idx, cards, review, onDone, onExit }) {
 }
 
 /* ───────── 오늘 단어 ───────── */
-export function Study({ words, pool, newPerDay, autoSpeak, onDone, onMore }) {
+export function Study({ words, pool, newPerDay, revCap = 0, autoSpeak, onDone, onMore }) {
   const cards = useData('words');
   const cardsRef = useRef(cards);
   cardsRef.current = cards;
@@ -262,7 +311,7 @@ export function Study({ words, pool, newPerDay, autoSpeak, onDone, onMore }) {
   const idx = useMemo(() => kanjiIndex(pool), [pool]);
 
   // phase: review 복습 · intro 새 단어 보기 · quiz 새 단어 퀴즈 · end
-  const [st, setSt] = useState(() => ({ phase: 'review', list: reviewIds(ids, cards, today, Date.now()), pos: 0, batch: [], key: 0 }));
+  const [st, setSt] = useState(() => ({ phase: 'review', list: reviewIds(ids, cards, today, Date.now(), revCap), pos: 0, batch: [], key: 0 }));
   const [stat, setStat] = useState({ rev: 0, ok: 0, fresh: 0, known: 0 });
   const timer = useRef(null);
   useEffect(() => {
@@ -275,7 +324,7 @@ export function Study({ words, pool, newPerDay, autoSpeak, onDone, onMore }) {
   const advance = (just = {}) => {
     const c = { ...cardsRef.current, ...just };
     const now = Date.now();
-    const rev = reviewIds(ids, c, today, now);
+    const rev = reviewIds(ids, c, today, now, revCap);
     if (rev.length) return setSt((s) => ({ phase: 'review', list: rev, pos: 0, batch: [], key: s.key + 1 }));
     const left = Math.max(0, newPerDay - newToday(c, today));
     const batch = newIds(words, c, Math.min(BATCH, left));
@@ -353,6 +402,8 @@ export function Study({ words, pool, newPerDay, autoSpeak, onDone, onMore }) {
   if (st.phase === 'end' || !w) {
     if (st.phase !== 'end') return null;
     const mins = wait.n ? Math.max(1, Math.ceil((wait.next - Date.now()) / 60e3)) : 0;
+    // 상한 때문에 내일로 넘어간 복습
+    const left = revCap ? reviewIds(ids, cards, today, Date.now()).filter((x) => !cards[x].ls).length : 0;
     return (
       <div className="page wd">
         <section className="card wd-end">
@@ -362,6 +413,7 @@ export function Study({ words, pool, newPerDay, autoSpeak, onDone, onMore }) {
             <div><b className="num wd-c-new">{stat.fresh}</b><small>새로 배움</small></div>
             <div><b className="num">{stat.known}</b><small>이미 알아요</small></div>
           </div>
+          {left > 0 && <p className="sub">오늘 복습 상한({revCap}개)을 채워서 남은 {left}개는 내일 먼저 나와요.</p>}
           {wait.n > 0 && <p className="sub">방금 배우거나 틀린 단어 {wait.n}개는 <b>{mins}분 뒤</b>에 한 번 더 나와요. 그때 다시 '오늘 단어'를 눌러 주세요.</p>}
           <div className="row">
             {onMore && <button type="button" className="btn btn--pri" onClick={() => onMore(10)}>새 단어 10개 더</button>}
@@ -372,7 +424,7 @@ export function Study({ words, pool, newPerDay, autoSpeak, onDone, onMore }) {
     );
   }
 
-  const label = st.phase === 'review' ? (cards[id]?.ls ? '다시 확인' : '복습') : st.phase === 'intro' ? `새 단어 ${st.pos + 1}/${st.list.length}` : '방금 배운 것 확인';
+  const label = st.phase === 'review' ? (isLeech(cards[id]) ? '안 외워지는 단어' : cards[id]?.ls ? '다시 확인' : '복습') : st.phase === 'intro' ? `새 단어 ${st.pos + 1}/${st.list.length}` : '방금 배운 것 확인';
   return (
     <div className="page wd wd-sess ln">
       <header className="wd-sess__top">
@@ -394,7 +446,7 @@ export function Study({ words, pool, newPerDay, autoSpeak, onDone, onMore }) {
           </div>
         </>
       ) : (
-        <Check key={`${st.key}-${st.pos}-${id}`} w={w} pool={pool} idx={idx} cards={cards} review={st.phase === 'review'} onDone={st.phase === 'review' ? reviewed : quizzed} onExit={onDone} />
+        <Check key={`${st.key}-${st.pos}-${id}`} w={w} pool={pool} idx={idx} cards={cards} review={st.phase === 'review'} onDone={st.phase === 'review' ? reviewed : quizzed} onExit={onDone} onConfuse={(other) => save('words', id, (c) => addConfused(c, other))} />
       )}
     </div>
   );

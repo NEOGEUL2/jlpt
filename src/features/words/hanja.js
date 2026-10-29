@@ -1,7 +1,7 @@
 // 한자 → 한국 음·훈 (lists/hanja.txt, tools/hanja-build.py 로 만듦) + 같은 한자를 쓰는 단어 찾기
 //  · 한국 한자음을 알면 일본 음독이 대개 규칙대로 나옴 (학 → がく, 발 → はつ). 받침 규칙은 ON_RULES
 import raw from './lists/hanja.txt?raw';
-import { hasKanji, isKatakana } from './words';
+import { BASE, hasKanji, isKatakana } from './words';
 
 export const HANJA = (() => {
   const m = new Map();
@@ -57,4 +57,138 @@ export function siblings(word, idx, cards = {}, n = 3) {
     if (pick.length) out.push({ ch, words: pick.map((x) => ({ ...x, known: !!cards[x.id]?.t })) });
   }
   return out;
+}
+
+/* ───────── 한자마다 이 단어에서 읽는 소리 (道路 → 道 どう · 路 ろ) + 장음 ─────────
+ 단어 목록 전체에서 한자별로 자주 나오는 소리를 세고(앞·뒤 글자에서 후보 → 맞춰 보기 → 다시 세기),
+ 그걸로 단어 읽기를 한자마다 나눔. 장음(どう·せい·きゅう)은 '길게' 로 표시 */
+const KANA = /^[ぁ-ゖー]+$/;
+const tokens = (w) => {
+  const out = [];
+  for (const ch of w) {
+    if (KANJI.test(ch) && ch !== '々') out.push({ k: ch });
+    else if (ch === '々' && out.length && out.at(-1).k) out.push({ k: out.at(-1).k });
+    else if (KANA.test(ch)) {
+      if (out.length && out.at(-1).kana !== undefined) out.at(-1).kana += ch;
+      else out.push({ kana: ch });
+    } else return null; // 가타카나·기호 섞인 말은 안 나눔
+  }
+  return out;
+};
+
+// tokens 와 읽기 r 을 맞춤: 한자 하나에 1~4글자, 가나는 그대로. score(k, part) 합이 큰 것
+function alignBy(toks, r, score) {
+  const n = toks.length;
+  const memo = new Map();
+  const go = (t, i) => {
+    if (t === n) return i === r.length ? { s: 0, parts: [] } : null;
+    const key = `${t}:${i}`;
+    if (memo.has(key)) return memo.get(key);
+    let best = null;
+    const tk = toks[t];
+    if (tk.kana !== undefined) {
+      if (r.startsWith(tk.kana, i)) {
+        const rest = go(t + 1, i + tk.kana.length);
+        if (rest) best = { s: rest.s, parts: [{ kana: tk.kana }, ...rest.parts] };
+      }
+    } else {
+      for (let len = 1; len <= 4 && i + len <= r.length; len++) {
+        const part = r.slice(i, i + len);
+        if (/^[ゃゅょっーん]/.test(part)) continue; // 작은 글자·ん 으로 시작하는 소리는 없음
+        const rest = go(t + 1, i + len);
+        if (!rest) continue;
+        const s = rest.s + score(tk.k, part);
+        if (!best || s > best.s) best = { s, parts: [{ k: tk.k, r: part }, ...rest.parts] };
+      }
+    }
+    memo.set(key, best);
+    return best;
+  };
+  return go(0, 0)?.parts || null;
+}
+
+// 음독 모양(か·かい·こう·かく·かつ·かん·きゅう·がっ …)이면 덤 점수
+const ON_SHAPE = /^[^ぁぃぅぇぉゃゅょっんー][ゃゅょ]?(?:[いうくきつちん]|っ)?$/;
+const score = (m, k, part) => Math.log(1 + (m.get(k)?.get(part) || 0)) + (ON_SHAPE.test(part) ? 0.5 : 0) - 0.05 * part.length;
+
+let ON = null; // Map 한자 → Map 소리 → 단어 수
+function onTable() {
+  if (ON) return ON;
+  const list = BASE.map((w) => ({ toks: tokens(w.w), r: w.r })).filter((x) => x.toks && x.toks.some((t) => t.k) && KANA.test(x.r));
+  const add = (m, k, part) => {
+    if (!m.has(k)) m.set(k, new Map());
+    m.get(k).set(part, (m.get(k).get(part) || 0) + 1);
+  };
+  // 1) 첫·끝 한자의 앞·뒤 글자 후보
+  const cand = new Map();
+  for (const { toks, r } of list) {
+    if (toks.length < 2) continue;
+    const a = toks[0];
+    const b = toks.at(-1);
+    for (let len = 1; len <= 4 && len < r.length; len++) {
+      if (a.k) add(cand, a.k, r.slice(0, len));
+      if (b.k) add(cand, b.k, r.slice(r.length - len));
+    }
+  }
+  const sc = (m) => (k, part) => score(m, k, part);
+  // 2) 후보로 나눠 보고 → 3) 나눈 결과로 다시 세기 (두 번)
+  let table = cand;
+  for (let round = 0; round < 2; round++) {
+    const next = new Map();
+    for (const { toks, r } of list) {
+      const parts = alignBy(toks, r, sc(table));
+      if (parts) for (const p of parts) if (p.k) add(next, p.k, p.r);
+    }
+    table = next;
+  }
+  ON = table;
+  return ON;
+}
+
+// 이 단어 읽기를 한자마다: [{ k, r }, { kana }] · 못 나누면 null
+const partsMemo = new Map();
+export function readingParts(w, r) {
+  const key = `${w}|${r}`;
+  if (partsMemo.has(key)) return partsMemo.get(key);
+  const toks = tokens(w);
+  const tbl = onTable();
+  const res = toks && KANA.test(r) && toks.some((t) => t.k) ? alignBy(toks, r, (k, part) => score(tbl, k, part)) : null;
+  partsMemo.set(key, res);
+  return res;
+}
+
+// 이 한자를 다른 단어에선 어떻게 읽나 (많은 순) [{ r, n }]
+export function soundsOf(ch, n = 3) {
+  const m = onTable().get(ch);
+  if (!m) return [];
+  return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n).map(([r, c]) => ({ r, n: c }));
+}
+
+// 장음: 오단+う(どう·こう·ろう), 우단·요음+う(くう·きゅう·しょう), 에단+い(せい·けい), ー
+const O_ROW = 'おこごそぞとどのほぼぽもよろょ';
+const U_ROW = 'うくぐすずつづぬふぶぷむゆるゅ';
+const E_ROW = 'えけげせぜてでねへべぺめれ';
+export function longAt(part) {
+  const out = [];
+  [...part].forEach((c, i, a) => {
+    const p = a[i - 1];
+    if (c === 'ー' || (c === 'う' && p && (O_ROW.includes(p) || U_ROW.includes(p))) || (c === 'い' && p && E_ROW.includes(p))) out.push(i);
+  });
+  return out;
+}
+export const isLong = (part) => longAt(part).length > 0;
+
+// 한국 음과 장음 맞춰 보기: ㅇ·ㅂ 받침이면 길게가 규칙, 받침 없는데 길면 주의 (음독 모양일 때만)
+export function longNote(ko, part) {
+  if (!ON_SHAPE.test(part)) return '';
+  const s = (ko || '').split('·')[0];
+  const code = s ? s.charCodeAt(0) - 0xac00 : -1;
+  if (code < 0 || code > 11171) return '';
+  const jong = code % 28;
+  const long = isLong(part);
+  if (long && (jong === 21 || jong === 17)) return `받침 ${jong === 21 ? 'ㅇ' : 'ㅂ'} → 길게 (규칙대로)`;
+  if (long && jong === 0) return '받침 없는데 길게 · 외워 두기';
+  if (!long && jong === 0) return '받침 없음 → 짧게';
+  if (!long && jong === 21) return '받침 ㅇ인데 짧게 · 외워 두기';
+  return '';
 }
