@@ -85,3 +85,44 @@
 .gq-dot.known { background: var(--grn); }
 .gq-row .gq-note { padding: 0 4px 14px 22px; }
 .gq-mini { margin-top: 10px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--acc); background: none; color: var(--acc) !important; font-size: 13px; }
+
+/* 묶음끼리 */
+.gq-groups button { font-size: 13.5px; }
+.gq-groups button span { color: var(--sub); font-size: 12px; margin-left: 2px; }
+
+/* 소개 카드 (처음 보는 문법) */
+.gq-intro { padding-top: 24px; display: grid; gap: 4px; }
+.gq-intro-f { font-size: 30px; font-weight: 700; margin-top: 4px; }
+.gq-intro-m { font-size: 18px; }
+.gq-intro .gq-ex { margin-top: 14px; }
+.gq-tip { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--cell); font-size: 13.5px; line-height: 1.55; word-break: keep-all; }
+.gq-sib { margin-top: 4px; font-size: 14px; display: grid; gap: 4px; }
+.gq-sib .gq-sec { margin-bottom: 2px; }
+.gq-sib span { color: var(--sub); font-size: 13px; }
+
+/* ★ 문장 만들기 */
+.gq-star { line-height: 2.3; }
+.gq-slot { display: inline-block; min-width: 3.2em; min-height: 1.6em; margin: 0 3px; padding: 0 6px; border: 0; border-bottom: 2px solid var(--sub); background: none; font: inherit; line-height: 1.5; vertical-align: baseline; position: relative; }
+.gq-slot.star { border-bottom-color: var(--acc); }
+.gq-slot.star::before { content: '★'; position: absolute; top: -1.2em; left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--acc); line-height: 1; }
+.gq-slot.on { background: var(--cell); border-radius: 6px 6px 0 0; }
+.gq .gq-slot:disabled { opacity: 1; cursor: default; }
+.gq-slot.right { color: var(--grn); border-bottom-color: var(--grn); }
+.gq-slot.wrong { color: var(--red); border-bottom-color: var(--red); }
+.gq-pieces { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.gq-pieces button { display: flex; align-items: center; gap: 10px; padding: 14px 12px; border: 2px solid var(--line); border-radius: 14px; background: var(--surf); text-align: left; font-size: 17px; box-shadow: 0 2px 0 var(--line); }
+.gq-pieces button.used { opacity: 0.3; }
+
+/* 답 화면 */
+.gq-sheet { max-height: 72vh; display: flex; flex-direction: column; }
+.gq-sheet-body { overflow-y: auto; min-height: 0; display: grid; gap: 10px; }
+.gq-sheet .gq-go { flex: none; }
+.gq-full { font-size: 15.5px; line-height: 1.7; }
+.gq-ord { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; margin: 0 1px; }
+.gq-starw { text-decoration: underline 2px; text-decoration-color: var(--acc); text-underline-offset: 4px; font-weight: 700; margin: 0 1px; }
+.gq-opts .gq-sec { margin: 4px 0 4px; }
+.gq-opt { display: flex; gap: 8px; font-size: 14px; line-height: 1.5; padding: 3px 0; }
+.gq-opt i { flex: none; width: 1.2em; font-style: normal; color: var(--sub); text-align: center; }
+.gq-opt.right i { color: var(--grn); font-weight: 700; }
+.gq-opt.wrong i { color: var(--red); font-weight: 700; }
+.gq-opt em { color: var(--sub); font-style: normal; font-size: 12.5px; }
