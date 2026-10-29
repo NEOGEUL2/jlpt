@@ -1,0 +1,88 @@
+/* 공통 화면 토큰·부품. 기능 화면은 자기 CSS 파일에서 이 토큰(--bg, --ink …)과 .page .card .btn .seg .sub 를 씀 */
+:root {
+  --bg: #fafaf7;
+  --surf: #ffffff;
+  --cell: #efeee9;
+  --ink: #1d1d22;
+  --sub: #77767d;
+  --line: #e6e4de;
+  --acc: #1f2a44; /* 남색: 기본 버튼 */
+  --red: #e5533d; /* 다시 · 틀림 */
+  --org: #e8973a; /* 어려움 */
+  --grn: #2f9e6a; /* 알맞음 · 맞음 */
+  --blu: #3a7bd5; /* 쉬움 · 새 단어 */
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+  --r: 16px;
+  --kr: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
+  --ja: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif;
+  --ja-serif: 'Hiragino Mincho ProN', 'Noto Serif JP', 'Yu Mincho', serif;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16161a;
+    --surf: #222227;
+    --cell: #2c2c32;
+    --ink: #ececef;
+    --sub: #9a99a3;
+    --line: #34343b;
+    --acc: #dfe6f7;
+    --red: #ff7a64;
+    --org: #f2ad5c;
+    --grn: #4cc28b;
+    --blu: #6aa3f0;
+    --shadow: none;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--kr); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+[lang='ja'] { font-family: var(--ja); }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--blu); outline-offset: 2px; }
+
+/* 뼈대: 넓으면 왼쪽 메뉴, 좁으면 아래 탭 */
+.app { display: grid; grid-template-columns: 96px 1fr; height: 100%; }
+.nav { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 18px 0; border-right: 1px solid var(--line); background: var(--bg); }
+.nav__logo { font: 800 18px/1 var(--ja); letter-spacing: -0.02em; margin-bottom: 14px; padding: 9px 10px; border-radius: 12px; background: var(--acc); color: var(--bg); }
+.nav__b { display: grid; justify-items: center; gap: 2px; width: 76px; padding: 9px 0; border: 0; border-radius: 12px; background: none; color: var(--sub); cursor: pointer; }
+.nav__b:hover { background: var(--cell); }
+.nav__b.is-on { background: var(--surf); color: var(--ink); box-shadow: var(--shadow); }
+.nav__i { font-size: 20px; font-weight: 700; line-height: 1.1; }
+.nav__t { font-size: 11.5px; font-weight: 600; }
+.nav__b:last-child { margin-top: auto; }
+.main { min-width: 0; overflow: auto; }
+
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  .nav { order: 2; flex-direction: row; justify-content: space-around; gap: 0; padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid var(--line); }
+  .nav__logo { display: none; }
+  .nav__b { width: auto; flex: 1; padding: 6px 0; }
+  .nav__b.is-on { background: none; box-shadow: none; color: var(--ink); }
+  .nav__b:last-child { margin-top: 0; }
+  .main { padding-top: env(safe-area-inset-top); }
+}
+
+/* 공통 부품 */
+.page { display: grid; gap: 14px; align-content: start; max-width: 1080px; margin: 0 auto; padding: 28px 28px 60px; }
+@media (max-width: 760px) { .page { padding: 16px 16px 40px; } }
+.h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+.card { background: var(--surf); border-radius: var(--r); box-shadow: var(--shadow); padding: 18px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+@media (prefers-color-scheme: dark) { .card { border: 1px solid var(--line); } }
+.sub { color: var(--sub); font-size: 13px; margin: 0; }
+.btn { border: 0; background: var(--cell); color: var(--ink); font-size: 14px; font-weight: 600; padding: 9px 16px; border-radius: 99px; cursor: pointer; justify-self: start; }
+.btn:hover { filter: brightness(0.96); }
+.btn--pri { background: var(--acc); color: var(--bg); }
+.btn--big { font-size: 16px; padding: 14px 22px; border-radius: 14px; }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.seg { display: inline-flex; flex-wrap: wrap; background: var(--cell); border-radius: 10px; padding: 3px; gap: 2px; justify-self: start; }
+.seg button { border: 0; background: none; font-size: 13.5px; font-weight: 600; color: var(--sub); padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+.seg button[aria-pressed='true'] { background: var(--surf); color: var(--ink); box-shadow: var(--shadow); }
+.num { font-variant-numeric: tabular-nums; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.field { display: grid; gap: 4px; font-size: 13px; color: var(--sub); }
+.field input, .field textarea, .field select { font: inherit; font-size: 15px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
+.field textarea { min-height: 120px; resize: vertical; }
+.bar { height: 8px; border-radius: 99px; background: var(--cell); overflow: hidden; display: flex; }
+.bar > i { display: block; height: 100%; }
