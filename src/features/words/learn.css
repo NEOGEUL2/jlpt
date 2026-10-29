@@ -1,0 +1,78 @@
+/* 오늘 단어(배우기·확인) · N1 모양 문제 (src/features/words/Learn.jsx · N1Quiz.jsx) */
+.ln-ph { flex: none; }
+.ln .wd-grades--front .btn { white-space: nowrap; }
+.ln-ph--intro, .ln-ph--quiz { background: color-mix(in srgb, var(--blu) 16%, transparent); color: var(--blu); }
+.ln-ph--review { background: color-mix(in srgb, var(--grn) 16%, transparent); color: var(--grn); }
+
+.ln-q { grid-template-columns: minmax(0, 1fr); min-height: 340px; align-content: center; justify-items: center; text-align: center; padding: 28px 22px; gap: 14px; position: relative; }
+.ln-q__w { font-size: clamp(40px, 9vw, 60px); font-weight: 700; line-height: 1.2; letter-spacing: 0.02em; }
+.ln-q__r { font-size: 20px; color: var(--sub); margin-top: -6px; }
+.ln-q kbd, .ln-two kbd, .wd-grades--front kbd { font: 600 10.5px var(--kr); padding: 1px 5px; border-radius: 4px; border: 1px solid currentColor; opacity: 0.55; margin-left: 4px; }
+
+/* 읽기 입력 */
+.ln-read { display: flex; gap: 8px; width: 100%; max-width: 420px; }
+.ln-read input { flex: 1; min-width: 0; font: 600 24px var(--ja); text-align: center; padding: 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg); color: var(--ink); }
+.ln-read input:focus { outline: none; border-color: var(--blu); }
+.ln-read input.is-right { border-color: var(--grn); background: color-mix(in srgb, var(--grn) 12%, var(--bg)); }
+.ln-read input.is-wrong { border-color: var(--red); background: color-mix(in srgb, var(--red) 10%, var(--bg)); text-decoration: line-through; }
+.ln-fb { display: grid; gap: 8px; justify-items: center; }
+.ln-fb > b { font-size: 17px; }
+.ln-idk { font-size: 13px; padding: 6px 14px; }
+
+/* 한자 조각 */
+.ln-kj { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.ln-kj__c { display: grid; justify-items: center; gap: 1px; min-width: 76px; padding: 8px 10px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+.ln-kj__c b { font-size: 26px; line-height: 1.15; }
+.ln-kj__ko { font-weight: 800; font-size: 15px; color: var(--blu); }
+.ln-kj__c small { font-size: 11.5px; color: var(--sub); }
+.ln-kj__c em { font-style: normal; font-size: 11px; color: var(--org); }
+
+/* 단어 전체 */
+.ln-info { display: grid; gap: 10px; justify-items: center; width: 100%; animation: wd-in 0.18s ease-out; }
+.ln-info__w { font-size: 40px; font-weight: 700; line-height: 1.2; }
+.ln-info.is-big .ln-info__w { font-size: clamp(44px, 10vw, 64px); }
+.ln-info__r { font-size: 21px; color: var(--sub); }
+.ln-info__m { font-size: 20px; font-weight: 700; }
+.ln-info__ex { padding-top: 10px; border-top: 1px dashed var(--line); display: grid; gap: 4px; max-width: 34em; }
+.ln-info__ex p { margin: 0; }
+.ln-info__ex p[lang='ja'] { font-size: 17px; }
+.ln-info__ex mark, .ln-q u { background: none; color: inherit; font-weight: 700; text-decoration: underline 2px var(--org); text-underline-offset: 4px; }
+.ln-say { justify-content: center; }
+.ln-say .btn { font-size: 13px; padding: 6px 12px; }
+
+/* 같은 한자 단어 */
+.ln-sib { width: 100%; max-width: 30em; display: grid; gap: 4px; text-align: left; }
+.ln-sib ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.ln-sib li { display: grid; grid-template-columns: auto auto 1fr auto; gap: 8px; align-items: baseline; padding: 5px 8px; border-radius: 8px; font-size: 14px; }
+.ln-sib li.is-known { background: color-mix(in srgb, var(--grn) 10%, transparent); }
+.ln-sib li b { font-size: 16px; }
+.ln-sib__m { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ln-sib li i { font-style: normal; color: var(--grn); font-weight: 800; }
+
+/* 몰랐음 / 알았음 */
+.ln-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; position: sticky; bottom: 8px; }
+.ln-g { display: grid; justify-items: center; gap: 1px; border: 2px solid transparent; border-radius: 14px; padding: 12px 4px 10px; cursor: pointer; background: var(--surf); box-shadow: var(--shadow); }
+.ln-g b { font-size: 16px; color: var(--c); }
+.ln-g small { font-size: 12px; color: var(--sub); }
+.ln-g--ng { --c: var(--red); }
+.ln-g--ok { --c: var(--grn); }
+.ln-g.is-auto { border-color: var(--c); background: color-mix(in srgb, var(--c) 10%, var(--surf)); }
+@media (hover: none) { .ln-q kbd, .ln-two kbd, .wd-grades--front kbd { display: none; } }
+
+/* N1 모양 문제 */
+.ln-n1__p { display: grid; gap: 2px; }
+.ln-n1__p span { font-size: 14px; font-weight: 700; }
+.ln-n1__p small { font-size: 12px; }
+.ln-blank { font-weight: 700; color: var(--blu); }
+.wd-ch .ln-opt { font: inherit; color: inherit; }
+.wd-ch .ln-opt small { font: 400 12px var(--kr); color: var(--sub); }
+.wd-choices.ln-sents { grid-template-columns: 1fr; max-width: 640px; }
+.wd-ch .ln-sent { font: 400 16px var(--ja); color: var(--ink); line-height: 1.6; }
+.wd-ch .ln-sent b { text-decoration: underline 2px var(--org); text-underline-offset: 3px; }
+
+@media (max-width: 560px) {
+  .ln-q { min-height: 280px; padding: 22px 14px; }
+  .ln-sib li { grid-template-columns: auto 1fr auto; }
+  .ln-sib li .sub { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .ln-info { animation: none; } }
