@@ -33,3 +33,11 @@
 - 묶음 `drill` 기록 `{ id, date, section, mondai(r8~r13·l1~l5), page, label, total, correct, min, wrong: [{ id, q, mine, answer, reason, note, rv }] }`
 - 틀린 문제 다시 풀기 `rv { step, due, done, hist }`: 맞히면 1→3→7일 뒤, 세 번이면 다 앎, 틀리면 내일부터 다시 (`STEPS`)
 - 공부 시간: 기록 하나 = `logStudy` 한 줄(id `drill-<기록 id>`, 고치면 같은 줄) · 다시 풀기는 `useStudyTimer`
+
+## 단어 외우기 (`src/features/words/` Learn.jsx · learn.js · hanja.js · N1Quiz.jsx · n1quiz.js)
+- '오늘 단어' = `Study`: 복습(한자 단어는 읽기 직접 입력 → 뜻 4개 중 고르기 → 몰랐음/알았음) → 새 단어 5개씩 `BATCH` 먼저 보기('이미 알아요' 가능) → 바로 그 5개 퀴즈(틀리면 줄 끝에 다시) → 배우는 중
+- 배우는 중 = 카드에 `ls`(단계)·`la`(다시 볼 시각 ms). 배운 뒤·틀린 뒤 10분(`RELEARN_MIN`) 지나면 다시, 맞히면 srs grade 로 졸업. 저장은 `save('words', id, () => 새 상태)` 통째로
+- 로마자 → 히라가나 `toKana`(치는 중) · `finishKana` · `sameReading`(가타카나도 같게)
+- 한자 한국 음·훈 `lists/hanja.txt`(字|음|훈|옛 글자) ← `python3 tools/hanja-build.py <libhangul hanja.txt> <cjkvi jp-old-style.txt>` (출처 NOTICE.md). 받침 → 음독 규칙 `onHint`, 같은 한자 단어 `siblings`(본 단어 먼저)
+- N1 모양 문제 `makeQuiz`: ctx 문맥(빈칸, 활용 꼬리 `slotOf`) · para 言い換え(한국어 뜻 조각 겹치는 단어) · use 用法(명사·형용사·부사만, 다른 예문에 넣은 것이 틀린 보기). 틀린 단어는 10분 뒤 복습 / 안 배운 건 `pri`
+- 테스트 `tests/learn.test.js`

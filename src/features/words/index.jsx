@@ -1,11 +1,12 @@
-// 단어: 오늘 복습 → 카드(뜻 맞히기) · 읽기 퀴즈(한자 읽기) · 교재 단어 넣기 · 단어장
+// 단어: 오늘 단어(복습 → 새 단어 5개씩 배우기, Learn.jsx) · N1 모양 문제(N1Quiz.jsx) · 읽기 퀴즈(한자 읽기) · 교재 단어 넣기 · 단어장
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { remove, save, saveMany, useData } from '../../lib/store';
-import { EXAM_DATE, GRADES, grade, maturity, preview, queue } from '../../lib/srs';
+import { EXAM_DATE, maturity, queue } from '../../lib/srs';
 import { diffDays, todayStr } from '../../lib/dates';
-import { hasJa, speak } from '../../lib/speak';
 import { startTimer } from '../../lib/studylog';
-import { BASE, LEVELS, allWords, hasKanji, idsInOrder, unsorted, isKatakana, newToday, parsePaste, quizPick, readingChoices, splitExample } from './words';
+import { BASE, LEVELS, allWords, hasKanji, idsInOrder, unsorted, newToday, parsePaste, quizPick, readingChoices, splitExample } from './words';
+import { Study } from './Learn';
+import { N1Quiz } from './N1Quiz';
 import './words.css';
 
 const NEW_OPTS = [20, 30, 50, 80, 100];
@@ -24,13 +25,14 @@ function useWords(all) {
 const setPrefs = (patch) => save('prefs', 'main', patch);
 
 export default function Words() {
-  const [mode, setMode] = useState(null); // null 첫 화면 · 'cards' · 'quiz' · 'add' · 'list'
+  const [mode, setMode] = useState(null); // null 첫 화면 · 'cards' 오늘 단어 · 'n1' N1 모양 문제 · 'quiz' · 'add' · 'list'
   const [round, setRound] = useState(0);
   const done = (next = null) => {
     setMode(next);
     setRound((r) => r + 1);
   };
-  if (mode === 'cards') return <Session onDone={() => done()} />;
+  if (mode === 'cards') return <StudyRoute onDone={() => done()} />;
+  if (mode === 'n1') return <N1Route onDone={() => done()} />;
   if (mode === 'sort') return <Sort key={round} onDone={done} />;
   if (mode === 'quiz') return <Quiz onDone={done} />;
   if (mode === 'add') return <AddWords onDone={done} />;
@@ -77,6 +79,7 @@ function Home({ go }) {
         <div className="row">
           <button type="button" className="btn" onClick={() => go('sort')}>아는 단어 빠르게 거르기</button>
           <button type="button" className="btn" onClick={() => go('quiz')}>한자 읽기 퀴즈 10문제</button>
+          <button type="button" className="btn" onClick={() => go('n1')}>N1 모양 문제 10개</button>
         </div>
       </section>
 
@@ -146,153 +149,16 @@ function Levels({ prefs, cards }) {
   );
 }
 
-/* ───────── 카드 ───────── */
-function Ex({ ex, w }) {
-  const [a, b, c] = splitExample(ex, w);
-  return <>{a}{b && <mark>{b}</mark>}{c}</>;
-}
-
-function Session({ onDone }) {
+/* ───────── 오늘 단어 · N1 모양 문제 (Learn.jsx · N1Quiz.jsx) ───────── */
+function StudyRoute({ onDone }) {
   const words = useWords();
-  const cards = useData('words');
+  const pool = useWords(true);
   const prefs = usePrefs();
-  const today = todayStr();
-  const byId = useMemo(() => Object.fromEntries(words.map((w) => [w.id, w])), [words]);
-  // 시작할 때 한 번 줄 세움 (복습 먼저, 새 단어는 사이사이)
-  const [line, setLine] = useState(() => {
-    const q = queue(idsInOrder(words, cards), cards, today, Math.max(0, prefs.newPerDay - newToday(cards, today)));
-    const out = [];
-    let f = 0;
-    q.due.forEach((id, i) => {
-      out.push(id);
-      if (i % 4 === 3 && f < q.fresh.length) out.push(q.fresh[f++]);
-    });
-    while (f < q.fresh.length) out.push(q.fresh[f++]);
-    return out;
-  });
-  const [pos, setPos] = useState(0);
-  const [open, setOpen] = useState(false);
-  const [stat, setStat] = useState({ n: 0, ok: 0, again: 0, learned: 0 });
-  const total = useRef(line.length);
-  const timer = useRef(null);
-  useEffect(() => {
-    timer.current = startTimer('vocab', '단어 카드');
-    return () => timer.current?.finish();
-  }, []);
-
-  const id = line[pos];
-  const w = byId[id];
-  const card = cards[id];
-  const isNew = !card?.t;
-  const ja = hasJa();
-
-  const answer = (g) => {
-    if (!w) return;
-    const next = grade(card, g, today, EXAM_DATE);
-    if (isNew) next.f = today;
-    save('words', id, next);
-    const learned = g > 1 && next.i >= 7 && (card?.i || 0) < 7 ? 1 : 0;
-    setStat((s) => ({ n: s.n + 1, ok: s.ok + (g > 1 ? 1 : 0), again: s.again + (g === 1 ? 1 : 0), learned: s.learned + learned }));
-    timer.current?.add({ n: 1, ok: g > 1 ? 1 : 0, learned });
-    if (g === 1) setLine((l) => [...l.slice(0, pos + 1), ...l.slice(pos + 1, pos + 4), id, ...l.slice(pos + 4)]); // 세 장 뒤에 또
-    setOpen(false);
-    setPos((p) => p + 1);
-  };
-  const knowIt = () => {
-    save('words', id, { skip: 1, t: today, d: '9999-12-31', i: 999, f: today });
-    timer.current?.add({ n: 1, ok: 1, learned: 1 });
-    setOpen(false);
-    setPos((p) => p + 1);
-  };
-
-  useEffect(() => {
-    const key = (e) => {
-      if (e.target.closest('input, textarea')) return;
-      if (e.key === ' ' || e.key === 'Enter') {
-        e.preventDefault();
-        if (!open) setOpen(true);
-        else answer(3);
-      } else if (open && /^[1-4]$/.test(e.key)) answer(+e.key);
-      else if (e.key === 'Escape') onDone();
-    };
-    window.addEventListener('keydown', key);
-    return () => window.removeEventListener('keydown', key);
-  });
-  useEffect(() => {
-    if (open && w && prefs.autoSpeak && ja) speak(w.r);
-  }, [open, w, prefs.autoSpeak, ja]);
-
-  if (!w) {
-    return (
-      <div className="page wd">
-        <section className="card wd-end">
-          <b className="wd-end__t">오늘 단어 끝!</b>
-          <div className="wd-today__nums">
-            <div><b className="num">{stat.n}</b><small>본 카드</small></div>
-            <div><b className="num">{stat.n ? Math.round((stat.ok / stat.n) * 100) : 0}%</b><small>바로 기억</small></div>
-            <div><b className="num">{stat.learned}</b><small>새로 익힘</small></div>
-          </div>
-          <div className="row">
-            <button type="button" className="btn btn--pri" onClick={onDone}>처음으로</button>
-          </div>
-        </section>
-      </div>
-    );
-  }
-
-  const shown = Math.min(pos, total.current);
-  return (
-    <div className="page wd wd-sess">
-      <header className="wd-sess__top">
-        <button type="button" className="btn" onClick={onDone} aria-label="그만하기">✕</button>
-        <div className="bar wd-sess__bar"><i style={{ width: `${(shown / Math.max(1, line.length)) * 100}%`, background: 'var(--grn)' }} /></div>
-        <span className="num sub">{line.length - pos}</span>
-      </header>
-
-      <div className={`card wd-card ${open ? 'is-open' : ''}`} onClick={() => !open && setOpen(true)} role="button" tabIndex={0} aria-label={open ? undefined : '눌러서 뜻 보기'}>
-        <div className="wd-card__tag">{isNew ? <span className="wd-pill wd-pill--new">새 단어</span> : <span className="wd-pill">복습</span>}{w.set === '교재' ? <span className="wd-pill">교재{w.src ? ` · ${w.src}` : ''}</span> : <span className="wd-pill">{w.lv}</span>}</div>
-        <div className="wd-card__w" lang="ja">{w.w}</div>
-        {open ? (
-          <div className="wd-card__back">
-            {!isKatakana(w.w) && w.r !== w.w && <div className="wd-card__r" lang="ja">{w.r}</div>}
-            <div className="wd-card__m">{w.m}{w.en && <span className="wd-pill wd-en" title="한국어 뜻을 아직 못 넣은 단어예요">영어 뜻</span>}</div>
-            {w.ex && (
-              <div className="wd-card__ex">
-                <p lang="ja"><Ex ex={w.ex} w={w.w} /></p>
-                {w.k && <p className="sub">{w.k}</p>}
-              </div>
-            )}
-            {ja && (
-              <div className="row wd-card__say" onClick={(e) => e.stopPropagation()}>
-                <button type="button" className="btn" onClick={() => speak(w.r)}>🔊 단어</button>
-                {w.ex && <button type="button" className="btn" onClick={() => speak(w.ex)}>🔊 예문</button>}
-                {w.ex && <button type="button" className="btn" onClick={() => speak(w.ex, 0.7)}>천천히</button>}
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="sub wd-card__hint">뜻을 떠올린 다음 눌러 보세요 <kbd>Space</kbd></p>
-        )}
-      </div>
-
-      {open ? (
-        <div className="wd-grades">
-          {GRADES.map((g) => (
-            <button key={g.g} type="button" className={`wd-g wd-g--${g.g}`} onClick={() => answer(g.g)}>
-              <b>{g.label}</b>
-              <small className="num">{preview(card, g.g, today, EXAM_DATE)}</small>
-              <kbd>{g.key}</kbd>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="wd-grades wd-grades--front">
-          <button type="button" className="btn btn--pri btn--big" onClick={() => setOpen(true)}>뜻 보기</button>
-          {isNew && <button type="button" className="btn btn--big" onClick={knowIt}>이미 알아요</button>}
-        </div>
-      )}
-    </div>
-  );
+  return <Study words={words} pool={pool} newPerDay={prefs.newPerDay} autoSpeak={prefs.autoSpeak} onDone={onDone} />;
+}
+function N1Route({ onDone }) {
+  const pool = useWords(true);
+  return <N1Quiz pool={pool} onDone={onDone} />;
 }
 
 /* ───────── 아는 단어 빠르게 거르기 ─────────
