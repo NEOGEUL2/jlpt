@@ -183,6 +183,19 @@ describe('장음 · 한자마다 읽는 소리', () => {
     expect(longAt('せい')).toEqual([1]);
     expect(isLong('さい')).toBe(false);
     expect(isLong('ろ')).toBe(false);
+    expect(longAt('おお')).toEqual([1]); // 大
+    expect(longAt('とお')).toEqual([1]); // 遠·十
+    expect(longAt('おかあさん')).toEqual([2]);
+    expect(longAt('おにいさん')).toEqual([2]);
+    expect(longAt('おねえさん')).toEqual([2]);
+    expect(longAt('ちい')).toEqual([1]); // 小さい
+    expect(longAt('コーヒー')).toEqual([1, 3]);
+    expect(isLong('かい')).toBe(false);
+    expect(isLong('あい')).toBe(false);
+    expect(longNote('소', 'ちい')).toBe(''); // 小さい 훈독
+    expect(longNote('형', 'にい')).toBe('');
+    expect(longNote('경', 'けい')).toMatch('규칙대로');
+    expect(longNote('회', 'かい')).toMatch('짧게');
     expect(longNote('도', 'どう')).toBe('받침 없는데 길게 · 외워 두기');
     expect(longNote('로', 'ろ')).toBe('받침 없음 → 짧게');
     expect(longNote('영', 'えい')).toBe('받침 ㅇ → 길게 (규칙대로)');
