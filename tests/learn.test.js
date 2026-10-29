@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BASE, allWords } from '../src/features/words/words';
-import { addConfused, answer, finishKana, forecast, isFast, isLeech, needRead, paceNeed, learned, meaningChoices, newIds, reviewIds, reviewedToday, sameReading, toKana, waitingInfo } from '../src/features/words/learn';
+import { addConfused, answer, finishKana, forecast, isFast, isLeech, meaningOnly, needRead, paceNeed, learned, meaningChoices, newIds, reviewIds, reviewedToday, sameReading, toKana, waitingInfo } from '../src/features/words/learn';
 import { isLong, kanjiIndex, kanjiInfo, kanjiOf, longAt, longNote, onHint, readingParts, siblings, soundsOf } from '../src/features/words/hanja';
 import { makeQuiz, slotOf } from '../src/features/words/n1quiz';
 
@@ -241,6 +241,13 @@ describe('학습량 늘리기', () => {
     expect(answer(ok1, true, today, now, exam, { read: true }).rx).toBeUndefined();
     // 배우는 중으로 틀려도 rx 는 남음
     expect(answer({ ...ng, ls: 1 }, false, today, now, exam, { read: false }).rx).toBe(2);
+  });
+  it("거르기 '뜻만 알아요' → 내일 복습, 읽기 꼭 침, 오늘 새 단어 수엔 안 셈", () => {
+    const c = meaningOnly(today);
+    expect(c).toMatchObject({ t: today, d: '2026-10-30', rx: 2 });
+    expect(c.f).toBeUndefined();
+    expect(needRead(w, { ...c, i: 9 })).toBe(true);
+    expect(reviewIds(['a'], { a: c }, '2026-10-30', now)).toEqual(['a']);
   });
   it('시험 1주 전까지 다 보려면 하루 몇 개', () => {
     expect(paceNeed(6000, 38)).toBe(200);

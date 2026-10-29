@@ -174,6 +174,9 @@ export function forecast(cards, today, days = 7) {
   return out;
 }
 
+// 거르기에서 '뜻만 알아요' (읽는 법 모름) → 내일부터 복습, 읽기를 꼭 치게(rx 2). 첫 본 날(f)은 안 넣어서 오늘 새 단어 수엔 안 셈
+export const meaningOnly = (today) => ({ t: today, d: ymd(addDays(parse(today), 1)), i: 1, e: 250, n: 1, l: 0, rx: 2, mo: 1 });
+
 // 시험 7일 전까지 안 본 단어를 다 보려면 하루 몇 개 (10개 단위로 올림, 마지막 일주일은 복습만)
 export const paceNeed = (fresh, daysLeft) => (fresh > 0 ? Math.ceil(fresh / Math.max(1, daysLeft - 7) / 10) * 10 : 0);
 
