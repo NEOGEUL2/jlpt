@@ -9,13 +9,17 @@ import { Study } from './Learn';
 import { N1Quiz } from './N1Quiz';
 import './words.css';
 
-const NEW_OPTS = [20, 30, 50, 80, 100];
+const NEW_OPTS = [20, 30, 50, 100, 150, 200];
 
 function usePrefs() {
   const p = useData('prefs').main || {};
   const levels = LEVELS.filter((l) => (p.levels || LEVELS).includes(l));
-  return { newPerDay: p.newPerDay || 50, ...p, levels: levels.length ? levels : LEVELS };
+  const base = p.newPerDay || 50;
+  // 오늘만 더 배우기 ('10개 더'): prefs.more = { d: 날짜, n: 더한 수 }
+  const more = p.more?.d === todayStr() ? p.more.n || 0 : 0;
+  return { ...p, newPerDay: base, more, newToday: base + more, levels: levels.length ? levels : LEVELS };
 }
+const addMore = (prefs, n) => save('prefs', 'main', { more: { d: todayStr(), n: prefs.more + n } });
 function useWords(all) {
   const own = useData('own');
   const { levels } = usePrefs();
@@ -47,7 +51,7 @@ function Home({ go }) {
   const prefs = usePrefs();
   const today = todayStr();
   const nNew = newToday(cards, today);
-  const q = queue(idsInOrder(words, cards), cards, today, Math.max(0, prefs.newPerDay - nNew));
+  const q = queue(idsInOrder(words, cards), cards, today, Math.max(0, prefs.newToday - nNew));
   const m = maturity(words.map((w) => w.id), cards);
   const total = words.length;
   const dd = diffDays(today, EXAM_DATE);
@@ -73,7 +77,8 @@ function Home({ go }) {
         ) : (
           <div className="wd-clear">
             <b>오늘 몫 끝! 🎉</b>
-            <p className="sub">더 하고 싶으면 하루 새 단어 수를 늘리거나 읽기 퀴즈를 풀어 보세요.</p>
+            <p className="sub">더 하고 싶으면 10개씩 더 배울 수 있어요 (몇 번이든).{prefs.more ? ` 오늘 ${prefs.more}개 더 함.` : ''}</p>
+            <button type="button" className="btn btn--pri btn--big wd-start" onClick={() => { addMore(prefs, 10); go('cards'); }}>새 단어 10개 더 배우기</button>
           </div>
         )}
         <div className="row">
@@ -154,7 +159,7 @@ function StudyRoute({ onDone }) {
   const words = useWords();
   const pool = useWords(true);
   const prefs = usePrefs();
-  return <Study words={words} pool={pool} newPerDay={prefs.newPerDay} autoSpeak={prefs.autoSpeak} onDone={onDone} />;
+  return <Study words={words} pool={pool} newPerDay={prefs.newToday} autoSpeak={prefs.autoSpeak} onDone={onDone} onMore={(n) => addMore(prefs, n)} />;
 }
 function N1Route({ onDone }) {
   const pool = useWords(true);

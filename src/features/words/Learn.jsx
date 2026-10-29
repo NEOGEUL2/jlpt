@@ -241,7 +241,7 @@ function Check({ w, pool, idx, cards, review, onDone, onExit }) {
 }
 
 /* ───────── 오늘 단어 ───────── */
-export function Study({ words, pool, newPerDay, autoSpeak, onDone }) {
+export function Study({ words, pool, newPerDay, autoSpeak, onDone, onMore }) {
   const cards = useData('words');
   const cardsRef = useRef(cards);
   cardsRef.current = cards;
@@ -274,6 +274,10 @@ export function Study({ words, pool, newPerDay, autoSpeak, onDone }) {
   useEffect(() => {
     if (st.phase === 'review' && !st.list.length) advance();
   }, [st]); // eslint-disable-line react-hooks/exhaustive-deps
+  // '10개 더' 로 오늘 새 단어 수가 늘면 끝 화면에서 이어서
+  useEffect(() => {
+    if (st.phase === 'end') advance();
+  }, [newPerDay]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const id = st.list[st.pos];
   const w = byId[id];
@@ -348,7 +352,10 @@ export function Study({ words, pool, newPerDay, autoSpeak, onDone }) {
             <div><b className="num">{stat.known}</b><small>이미 알아요</small></div>
           </div>
           {wait.n > 0 && <p className="sub">방금 배우거나 틀린 단어 {wait.n}개는 <b>{mins}분 뒤</b>에 한 번 더 나와요. 그때 다시 '오늘 단어'를 눌러 주세요.</p>}
-          <div className="row"><button type="button" className="btn btn--pri" onClick={onDone}>처음으로</button></div>
+          <div className="row">
+            {onMore && <button type="button" className="btn btn--pri" onClick={() => onMore(10)}>새 단어 10개 더</button>}
+            <button type="button" className={`btn ${onMore ? '' : 'btn--pri'}`} onClick={onDone}>처음으로</button>
+          </div>
         </section>
       </div>
     );
