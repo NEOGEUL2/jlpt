@@ -5,18 +5,21 @@ import { EXAM_DATE, GRADES, grade, maturity, preview, queue } from '../../lib/sr
 import { diffDays, todayStr } from '../../lib/dates';
 import { hasJa, speak } from '../../lib/speak';
 import { startTimer } from '../../lib/studylog';
-import { allWords, hasKanji, isKatakana, newToday, parsePaste, quizPick, readingChoices, splitExample } from './words';
+import { BASE, LEVELS, allWords, hasKanji, isKatakana, newToday, parsePaste, quizPick, readingChoices, splitExample } from './words';
 import './words.css';
 
-const NEW_OPTS = [10, 20, 30, 50];
+const NEW_OPTS = [10, 20, 30, 50, 80];
 
-function useWords() {
-  const own = useData('own');
-  return useMemo(() => allWords(own), [own]);
-}
 function usePrefs() {
   const p = useData('prefs').main || {};
-  return { newPerDay: p.newPerDay || 20, ...p };
+  const levels = LEVELS.filter((l) => (p.levels || LEVELS).includes(l));
+  return { newPerDay: p.newPerDay || 20, ...p, levels: levels.length ? levels : LEVELS };
+}
+function useWords(all) {
+  const own = useData('own');
+  const { levels } = usePrefs();
+  const key = all ? LEVELS.join() : levels.join();
+  return useMemo(() => allWords(own, key.split(',')), [own, key]);
 }
 const setPrefs = (patch) => save('prefs', 'main', patch);
 
@@ -71,6 +74,8 @@ function Home({ go }) {
         </div>
       </section>
 
+      <Levels prefs={prefs} cards={cards} />
+
       <section className="card">
         <div className="wd-hd"><b>익힌 정도</b><small className="num">{total}개 중 {m.known}개 익힘</small></div>
         <div className="bar wd-bar" aria-label={`익힘 ${m.known}, 배우는 중 ${m.learn}, 아직 안 본 것 ${m.fresh}`}>
@@ -104,6 +109,34 @@ function Home({ go }) {
         </div>
       </section>
     </div>
+  );
+}
+
+/* ───────── 급수 고르기 ───────── */
+function Levels({ prefs, cards }) {
+  const toggle = (lv) => {
+    const on = prefs.levels.includes(lv);
+    if (on && prefs.levels.length === 1) return;
+    setPrefs({ levels: LEVELS.filter((l) => (l === lv ? !on : prefs.levels.includes(l))) });
+  };
+  return (
+    <section className="card">
+      <div className="wd-hd"><b>공부할 급수</b><small>고른 급수만 새 단어로 나와요 · 쉬운 급수부터</small></div>
+      <div className="wd-lvs">
+        {LEVELS.map((lv) => {
+          const ids = BASE.filter((x) => x.lv === lv).map((x) => x.id);
+          const m = maturity(ids, cards);
+          const on = prefs.levels.includes(lv);
+          return (
+            <button key={lv} type="button" className={`wd-lv ${on ? 'is-on' : ''}`} aria-pressed={on} onClick={() => toggle(lv)}>
+              <span className="wd-lv__t"><b>{lv}</b><span className="wd-lv__chk" aria-hidden="true">{on ? '✓' : ''}</span></span>
+              <small className="num">{ids.length}개 · 익힘 {m.known}</small>
+              <span className="bar"><i style={{ width: `${(m.known / Math.max(1, ids.length)) * 100}%`, background: 'var(--grn)' }} /><i style={{ width: `${(m.learn / Math.max(1, ids.length)) * 100}%`, background: 'var(--org)' }} /></span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -211,12 +244,12 @@ function Session({ onDone }) {
       </header>
 
       <div className={`card wd-card ${open ? 'is-open' : ''}`} onClick={() => !open && setOpen(true)} role="button" tabIndex={0} aria-label={open ? undefined : '눌러서 뜻 보기'}>
-        <div className="wd-card__tag">{isNew ? <span className="wd-pill wd-pill--new">새 단어</span> : <span className="wd-pill">복습</span>}{w.set === '교재' && <span className="wd-pill">교재{w.src ? ` · ${w.src}` : ''}</span>}</div>
+        <div className="wd-card__tag">{isNew ? <span className="wd-pill wd-pill--new">새 단어</span> : <span className="wd-pill">복습</span>}{w.set === '교재' ? <span className="wd-pill">교재{w.src ? ` · ${w.src}` : ''}</span> : <span className="wd-pill">{w.lv}</span>}</div>
         <div className="wd-card__w" lang="ja">{w.w}</div>
         {open ? (
           <div className="wd-card__back">
             {!isKatakana(w.w) && w.r !== w.w && <div className="wd-card__r" lang="ja">{w.r}</div>}
-            <div className="wd-card__m">{w.m}</div>
+            <div className="wd-card__m">{w.m}{w.en && <span className="wd-pill wd-en" title="한국어 뜻을 아직 못 넣은 단어예요">영어 뜻</span>}</div>
             {w.ex && (
               <div className="wd-card__ex">
                 <p lang="ja"><Ex ex={w.ex} w={w.w} /></p>
@@ -395,7 +428,7 @@ function AddWords({ onDone }) {
 const STATE_LABEL = (c) => (!c?.t ? ['안 봄', ''] : c.skip ? ['알아요', 'known'] : c.i >= 7 ? ['익힘', 'known'] : ['배우는 중', 'learn']);
 
 function WordList({ onDone }) {
-  const words = useWords();
+  const words = useWords(true);
   const cards = useData('words');
   const [q, setQ] = useState('');
   const [f, setF] = useState('all');
@@ -406,6 +439,7 @@ function WordList({ onDone }) {
       const c = cards[w.id];
       if (f === 'hard') return (c?.l || 0) >= 2;
       if (f === 'own') return w.set === '교재';
+      if (LEVELS.includes(f)) return w.lv === f;
       if (f === 'learn') return c?.t && !c.skip && c.i < 7;
       return true;
     });
@@ -417,7 +451,7 @@ function WordList({ onDone }) {
       <section className="card">
         <label className="field"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="찾기 (한자 · 읽기 · 뜻)" /></label>
         <span className="seg">
-          {[['all', '전체'], ['learn', '배우는 중'], ['hard', '자주 틀림'], ['own', '교재']].map(([k, l]) => <button key={k} type="button" aria-pressed={f === k} onClick={() => setF(k)}>{l}</button>)}
+          {[['all', '전체'], ...LEVELS.map((l) => [l, l]), ['learn', '배우는 중'], ['hard', '자주 틀림'], ['own', '교재']].map(([k, l]) => <button key={k} type="button" aria-pressed={f === k} onClick={() => setF(k)}>{l}</button>)}
         </span>
         <p className="sub num">{list.length}개</p>
         <ul className="wd-list">
@@ -427,7 +461,7 @@ function WordList({ onDone }) {
             return (
               <li key={w.id}>
                 <b lang="ja">{w.w}</b>
-                <span lang="ja" className="sub">{hasKanji(w.w) ? w.r : ''}</span>
+                <span lang="ja" className="sub">{hasKanji(w.w) ? w.r : ''} <em className="wd-lvtag">{w.lv}</em></span>
                 <span className="wd-list__m">{w.m}</span>
                 <span className={`wd-pill ${cls ? `wd-pill--${cls}` : ''}`}>{lab}{c?.l ? ` · 틀림 ${c.l}` : ''}</span>
                 {w.set === '교재' && <button type="button" className="wd-x" aria-label={`${w.w} 지우기`} onClick={() => { remove('own', w.id); remove('words', w.id); }}>지우기</button>}

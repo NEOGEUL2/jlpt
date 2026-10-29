@@ -98,3 +98,16 @@
   .wd-g { padding: 10px 2px 8px; }
   .wd-card { min-height: 300px; }
 }
+
+/* 급수 */
+.wd-lvs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.wd-lv { display: grid; gap: 6px; text-align: left; border: 1.5px solid var(--line); background: var(--bg); border-radius: 14px; padding: 12px; cursor: pointer; color: var(--sub); }
+.wd-lv.is-on { border-color: var(--acc); background: var(--surf); color: var(--ink); }
+.wd-lv__t { display: flex; justify-content: space-between; align-items: center; }
+.wd-lv__t b { font-size: 20px; font-weight: 800; }
+.wd-lv__chk { width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+.wd-lv.is-on .wd-lv__chk { background: var(--acc); border-color: var(--acc); color: var(--bg); }
+.wd-lv small { font-size: 12px; }
+.wd-lv .bar { height: 6px; }
+.wd-en { margin-left: 8px; vertical-align: 3px; font-size: 10.5px; }
+.wd-lvtag { font-style: normal; font-size: 11px; color: var(--sub); }

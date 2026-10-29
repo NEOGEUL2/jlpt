@@ -12,6 +12,7 @@
 - 메뉴 등록: `src/features/index.js` 한 줄 `{ key, label, icon(한자 한 글자), C: lazy(() => import('./폴더')) }`
 - 화면: `src/features/<폴더>/index.jsx` (default export, props 없음) · 로직·데이터·CSS도 그 폴더 안
   - `words/` 단어 카드 · `grammar/` 문법 퀴즈 · `reading/` 독해·청해 · `stats/` 공부 기록 · `settings/` 설정(서버 연결·로그인)
+- 단어 급수 목록 `words/lists/n3·n2·n1.tsv`(open-anki-jlpt-decks, MIT, NOTICE.md) + 한국어 뜻 `lists/ko.txt`(단어|읽기|뜻, 없으면 영어 뜻) · 고른 급수 `prefs.main.levels`
 - 공통 `src/lib/`: `store.js` 저장 · `supabase.js` 서버 연결 · `srs.js` 복습 주기(단어·문법 같이) · `dates.js` · `studylog.js` 공부 시간
 - 다른 메뉴로 보내기: `window.dispatchEvent(new CustomEvent('jlpt-go', { detail: 'words' }))`
 

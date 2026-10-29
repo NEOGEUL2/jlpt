@@ -5,6 +5,10 @@
 import w1 from './words1.txt?raw';
 import w2 from './words2.txt?raw';
 import w3 from './words3.txt?raw';
+import n3 from './lists/n3.tsv?raw';
+import n2 from './lists/n2.tsv?raw';
+import n1 from './lists/n1.tsv?raw';
+import ko from './lists/ko.txt?raw';
 
 export const wordId = (w, r) => `${w}|${r}`;
 
@@ -19,20 +23,52 @@ export function parseList(text, set) {
   return out;
 }
 
-// 기본 단어 (같은 id 는 처음 것만)
+// 급수 (쉬운 것부터)
+export const LEVELS = ['N3', 'N2', 'N1'];
+
+// 급수 목록 lists/n?.tsv (단어\t읽기\t영어 뜻, 출처 lists/NOTICE.md) + 한국어 뜻 lists/ko.txt (단어|읽기|뜻)
+export function parseKo(text) {
+  const out = new Map();
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.trim() || line.startsWith('#')) continue;
+    const [w, r, m] = line.split('|').map((x) => x.trim());
+    if (w && r && m) out.set(wordId(w, r), m);
+  }
+  return out;
+}
+export function parseTsv(text, lv, koMap) {
+  const out = [];
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.trim() || line.startsWith('#')) continue;
+    const [w, r, en = ''] = line.split('\t').map((x) => x.trim());
+    if (!w || !r) continue;
+    const id = wordId(w, r);
+    const m = koMap.get(id);
+    out.push({ id, w, r, m: m || en, en: !m, ex: '', k: '', set: lv, lv });
+  }
+  return out;
+}
+
+// 기본 단어 (같은 id 는 처음 것만): 예문 있는 N1 단어(words1~3) → 급수 목록. 급수가 겹치면 쉬운 급수
 export const BASE = (() => {
   const seen = new Set();
-  const all = [...parseList(w1, '동사'), ...parseList(w2, '명사'), ...parseList(w3, '형용사·부사')];
+  const koMap = parseKo(ko);
+  const lists = { N3: parseTsv(n3, 'N3', koMap), N2: parseTsv(n2, 'N2', koMap), N1: parseTsv(n1, 'N1', koMap) };
+  const lvOf = new Map();
+  for (const lv of LEVELS) for (const x of lists[lv]) if (!lvOf.has(x.id)) lvOf.set(x.id, lv);
+  const mine = [...parseList(w1, '동사'), ...parseList(w2, '명사'), ...parseList(w3, '형용사·부사')].map((x) => ({ ...x, lv: lvOf.get(x.id) || 'N1' }));
+  const all = [...mine, ...lists.N3, ...lists.N2, ...lists.N1];
   return all.filter((x) => !seen.has(x.id) && seen.add(x.id));
 })();
 
-// 교재 단어가 먼저 (지금 공부하는 단원), 그다음 기본 단어
-export function allWords(own = {}) {
+// 교재 단어가 먼저 (지금 공부하는 단원), 그다음 고른 급수의 기본 단어 (levels 순서대로 새 단어가 나옴)
+export function allWords(own = {}, levels = LEVELS) {
   const mine = Object.entries(own)
-    .map(([id, x]) => ({ id, w: x.w, r: x.r, m: x.m, ex: x.ex || '', k: x.k || '', set: '교재', src: x.src || '', at: x.at || 0 }))
+    .map(([id, x]) => ({ id, w: x.w, r: x.r, m: x.m, ex: x.ex || '', k: x.k || '', set: '교재', lv: '교재', src: x.src || '', at: x.at || 0 }))
     .sort((a, b) => a.at - b.at);
   const ids = new Set(mine.map((x) => x.id));
-  return [...mine, ...BASE.filter((x) => !ids.has(x.id))];
+  const rest = BASE.filter((x) => !ids.has(x.id));
+  return [...mine, ...levels.flatMap((lv) => rest.filter((x) => x.lv === lv))];
 }
 
 const KANJI = /[一-鿿々]/;

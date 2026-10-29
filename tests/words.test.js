@@ -1,20 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import { BASE, parsePaste, readingChoices, readingTwists, splitExample } from '../src/features/words/words';
+import { BASE, allWords, parsePaste, readingChoices, readingTwists, splitExample } from '../src/features/words/words';
 import { grade, queue } from '../src/lib/srs';
 
 describe('단어 데이터', () => {
-  it('500개 넘게, 칸이 다 차 있음', () => {
-    expect(BASE.length).toBeGreaterThan(500);
-    for (const w of BASE) {
+  const CUR = BASE.filter((w) => w.ex);
+  it('예문 있는 단어 500개 넘게, 급수 목록 N3·N2·N1', () => {
+    expect(CUR.length).toBeGreaterThan(500);
+    for (const w of CUR) {
       expect(w.r).toMatch(/^[぀-ゟー]+$/);
-      expect(w.m.length).toBeGreaterThan(0);
-      expect(w.ex.length).toBeGreaterThan(0);
       expect(w.k.length).toBeGreaterThan(0);
     }
+    for (const w of BASE) {
+      expect(w.r).toMatch(/^[぀-ヿー]+$/);
+      expect(w.m.length).toBeGreaterThan(0);
+      expect(['N3', 'N2', 'N1']).toContain(w.lv);
+    }
+    for (const lv of ['N3', 'N2', 'N1']) expect(BASE.filter((w) => w.lv === lv).length).toBeGreaterThan(1500);
+    expect(new Set(BASE.map((w) => w.id)).size).toBe(BASE.length);
+  });
+  it('고른 급수 순서대로', () => {
+    const a = allWords({}, ['N2']);
+    expect(a.every((w) => w.lv === 'N2')).toBe(true);
+    const b = allWords({}, ['N3', 'N1']);
+    expect(b[0].lv).toBe('N3');
+    expect(b.at(-1).lv).toBe('N1');
   });
   it('예문 속 단어 자리 (활용형)', () => {
-    const miss = BASE.filter((w) => !splitExample(w.ex, w.w)[1]);
-    expect(miss.length / BASE.length).toBeLessThan(0.05);
+    const miss = CUR.filter((w) => !splitExample(w.ex, w.w)[1]);
+    expect(miss.length / CUR.length).toBeLessThan(0.05);
     expect(splitExample('長年、開発に携わってきた。', '携わる')[1]).toBe('携わ');
   });
 });
