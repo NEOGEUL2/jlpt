@@ -120,6 +120,10 @@
 .wd-sort__btns { grid-template-columns: 1fr 1fr 1fr; }
 .wd-sort__btns .wd-g:disabled { opacity: .35; cursor: default; }
 .wd-mid { color: var(--org); }
+.wd-sort__ans { display: grid; gap: 6px; justify-items: center; text-align: center; }
+.wd-sort__r { font-size: 20px; color: var(--sub); }
+.wd-sort__am { font-size: 18px; font-weight: 700; }
+.wd-sort__btns .wd-g.is-guess { outline: 2px solid var(--c); outline-offset: -2px; }
 .wd-sort__btns .wd-g { padding: 18px 4px; }
 .wd-sort__btns .wd-g b { font-size: 17px; }
 /* 하루 몇 개 필요한지 */

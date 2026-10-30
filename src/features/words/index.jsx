@@ -268,9 +268,17 @@ function Sort({ onDone }) {
   }, []);
   const w = list[pos];
   // k: know 알아요(다시 안 나옴) · mean 뜻만 알아요(내일부터 읽기 복습) · no 몰라요(새 단어 줄 맨 앞)
+  // 알아요·뜻만 알아요를 누르면 먼저 답(읽기·뜻)을 보여 주고(guess), 맞았는지 보고 정함. 몰라요는 바로
   const canMean = w && askReading(w);
+  const [guess, setGuess] = useState(null);
+  const press = (k) => {
+    if (!w || (k === 'mean' && !canMean)) return;
+    if (!guess && k !== 'no') return setGuess(k);
+    pick(k);
+  };
   const pick = (k) => {
     if (!w || (k === 'mean' && !canMean)) return;
+    setGuess(null);
     if (k === 'know') save('words', w.id, () => ({ skip: 1, t: today, d: '9999-12-31', i: 999, f: today }));
     else if (k === 'mean') save('words', w.id, () => meaningOnly(today));
     else save('words', w.id, { pri: 1 });
@@ -280,6 +288,7 @@ function Sort({ onDone }) {
   };
   const undo = () => {
     const last = hist.at(-1);
+    if (guess) return setGuess(null);
     if (!last) return;
     remove('words', last.w.id);
     setHist((h) => h.slice(0, -1));
@@ -287,9 +296,13 @@ function Sort({ onDone }) {
   };
   useEffect(() => {
     const key = (e) => {
-      if (e.key === 'ArrowLeft' || e.key === '1') pick('know');
-      else if (e.key === 'ArrowDown' || e.key === '2') pick('mean');
-      else if (e.key === 'ArrowRight' || e.key === '3') pick('no');
+      if (e.key === 'ArrowLeft' || e.key === '1') press('know');
+      else if (e.key === 'ArrowDown' || e.key === '2') press('mean');
+      else if (e.key === 'ArrowRight' || e.key === '3') press('no');
+      else if (guess && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        pick(guess);
+      }
       else if (e.key === 'Backspace' || (e.key === 'z' && (e.metaKey || e.ctrlKey))) undo();
       else if (e.key === 'Escape') onDone();
     };
@@ -327,7 +340,15 @@ function Sort({ onDone }) {
       <div className="card wd-card wd-sort">
         <div className="wd-card__tag"><span className="wd-pill">{w.lv}</span></div>
         <div className="wd-card__w" lang="ja">{w.w}</div>
-        <p className="sub">뜻과 읽기를 바로 떠올릴 수 있으면 '알아요', 뜻은 아는데 읽는 법이 헷갈리면 '뜻만 알아요'</p>
+        {guess ? (
+          <div className="wd-sort__ans">
+            {w.r !== w.w && <div className="wd-sort__r" lang="ja">{w.r}</div>}
+            <div className="wd-sort__am">{w.m}</div>
+            <p className="sub">생각한 것과 맞았나요? 맞았으면 그대로, 틀렸으면 아래에서 고쳐 골라요.</p>
+          </div>
+        ) : (
+          <p className="sub">뜻과 읽기를 바로 떠올릴 수 있으면 '알아요', 뜻은 아는데 읽는 법이 헷갈리면 '뜻만 알아요'. 누르면 답이 먼저 나와요</p>
+        )}
       </div>
       <div className="wd-sort__last" aria-live="polite">
         {last ? (
@@ -336,13 +357,21 @@ function Sort({ onDone }) {
             <b lang="ja">{last.w.w}</b><span lang="ja" className="sub">{last.w.r}</span><span className="wd-sort__m">{last.w.m}</span>
             <button type="button" className="wd-x" onClick={undo}>되돌리기</button>
           </>
-        ) : <span className="sub">누른 단어의 뜻이 여기 나와요. 틀렸으면 되돌리기</span>}
+        ) : <span className="sub">정한 단어가 여기 나와요. 잘못 눌렀으면 되돌리기</span>}
       </div>
-      <div className="wd-grades wd-sort__btns">
-        <button type="button" className="wd-g wd-g--3" onClick={() => pick('know')}><b>알아요</b><kbd>1</kbd></button>
-        <button type="button" className="wd-g wd-g--2" onClick={() => pick('mean')} disabled={!canMean} title={canMean ? '' : '한자 없는 단어라 읽기 복습이 없어요'}><b>뜻만 알아요</b><small>읽는 법 모름</small><kbd>2</kbd></button>
-        <button type="button" className="wd-g wd-g--1" onClick={() => pick('no')}><b>몰라요</b><kbd>3</kbd></button>
-      </div>
+      {guess ? (
+        <div className="wd-grades wd-sort__btns">
+          <button type="button" className={`wd-g wd-g--3 ${guess === 'know' ? 'is-guess' : ''}`} onClick={() => pick('know')}><b>{guess === 'know' ? '맞았어요' : '다 맞음'}</b><small>알아요</small><kbd>{guess === 'know' ? 'Enter' : '1'}</kbd></button>
+          <button type="button" className={`wd-g wd-g--2 ${guess === 'mean' ? 'is-guess' : ''}`} onClick={() => pick('mean')} disabled={!canMean}><b>{guess === 'mean' ? '맞았어요' : '뜻만 맞음'}</b><small>뜻만 알아요</small><kbd>{guess === 'mean' ? 'Enter' : '2'}</kbd></button>
+          <button type="button" className="wd-g wd-g--1" onClick={() => pick('no')}><b>틀렸어요</b><small>몰라요</small><kbd>3</kbd></button>
+        </div>
+      ) : (
+        <div className="wd-grades wd-sort__btns">
+          <button type="button" className="wd-g wd-g--3" onClick={() => press('know')}><b>알아요</b><kbd>1</kbd></button>
+          <button type="button" className="wd-g wd-g--2" onClick={() => press('mean')} disabled={!canMean} title={canMean ? '' : '한자 없는 단어라 읽기 복습이 없어요'}><b>뜻만 알아요</b><small>읽는 법 모름</small><kbd>2</kbd></button>
+          <button type="button" className="wd-g wd-g--1" onClick={() => press('no')}><b>몰라요</b><kbd>3</kbd></button>
+        </div>
+      )}
     </div>
   );
 }
