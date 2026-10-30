@@ -37,7 +37,7 @@ export function PairDrill({ pool, onDone }) {
   const timer = useRef(null);
   useEffect(() => {
     timer.current = startTimer('vocab', '비슷한 말 구별');
-    return () => timer.current?.finish();
+    return () => timer.current?.stop();
   }, []);
   const q = list[pos];
   const choose = (o) => {

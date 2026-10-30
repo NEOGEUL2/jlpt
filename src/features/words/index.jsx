@@ -264,7 +264,7 @@ function Sort({ onDone }) {
   const timer = useRef(null);
   useEffect(() => {
     timer.current = startTimer('vocab', '아는 단어 거르기');
-    return () => timer.current?.finish();
+    return () => timer.current?.stop();
   }, []);
   const w = list[pos];
   // k: know 알아요(다시 안 나옴) · mean 뜻만 알아요(내일부터 읽기 복습) · no 몰라요(새 단어 줄 맨 앞)
@@ -391,7 +391,7 @@ function Quiz({ onDone }) {
   const timer = useRef(null);
   useEffect(() => {
     timer.current = startTimer('vocab', '한자 읽기 퀴즈');
-    return () => timer.current?.finish();
+    return () => timer.current?.stop();
   }, []);
   const it = list[pos];
 
