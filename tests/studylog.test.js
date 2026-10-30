@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { cleanRow, mergeRows, studyDays, studyStreak, studyTotal, fmtStudy, toServer, startTimer, getStudyLog, logStudy } from '../src/lib/studylog';
+import { cleanRow, mergeRows, trimOverlaps, studyDays, studyStreak, studyTotal, fmtStudy, toServer, startTimer, getStudyLog, logStudy } from '../src/lib/studylog';
 
 const at = (ds, hm) => new Date(`${ds}T${hm}:00`).getTime();
 const log = [
@@ -60,5 +60,40 @@ describe('시간 재기', () => {
     expect(getStudyLog().filter((r) => r.id === id).map((r) => r.sec)).toEqual([900]);
     expect(logStudy({ part: 'reading', sec: 0 })).toBe(null);
     vi.useRealTimers();
+  });
+});
+
+describe('겹쳐 세기 막기 (고침 1)', () => {
+  it('새 타이머를 켜면 앞 타이머는 멈춤 · 멈춘 뒤 finish 는 아무것도 안 함', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-30T10:00:00'));
+    const a = startTimer('vocab', '앞 화면');
+    for (let i = 0; i < 30; i++) { window.dispatchEvent(new Event('pointerdown')); vi.advanceTimersByTime(1000); }
+    const b = startTimer('grammar', '뒤 화면');
+    for (let i = 0; i < 60; i++) { window.dispatchEvent(new Event('pointerdown')); vi.advanceTimersByTime(1000); }
+    a.finish();
+    vi.advanceTimersByTime(120 * 1000);
+    expect(a.sec).toBeLessThanOrEqual(31); // 멈췄으니 더 안 셈
+    const ra = getStudyLog().find((r) => r.what === '앞 화면');
+    expect(ra.sec).toBeGreaterThanOrEqual(29);
+    expect(ra.sec).toBeLessThanOrEqual(31);
+    b.stop();
+    const rb = getStudyLog().find((r) => r.what === '뒤 화면');
+    expect(rb.sec).toBeGreaterThanOrEqual(59);
+    expect(rb.sec).toBeLessThanOrEqual(150);
+    vi.useRealTimers();
+  });
+  it('예전에 겹쳐 센 줄은 다음 줄 시작까지로 자름 (직접 적은 건 그대로)', () => {
+    const t = (hm) => new Date(`2026-10-29T${hm}:00`).getTime();
+    const list = [
+      { id: 'z1', day: '2026-10-29', at: t('09:00'), sec: 6 * 3600, part: 'vocab', what: '단어 공부' },
+      { id: 'z2', day: '2026-10-29', at: t('09:05'), sec: 5 * 3600, part: 'vocab', what: '한자' },
+      { id: 'r3', day: '2026-10-29', at: t('09:10'), sec: 180, part: 'vocab' },
+      { id: 'drill-x', day: '2026-10-29', at: t('09:06'), sec: 3600, part: 'reading' },
+      { id: 'bk', day: '2026-10-29', at: t('09:07'), sec: 1800, part: 'reading', what: '책으로 독해' },
+    ];
+    const { list: out, ids } = trimOverlaps(list, t('23:00'));
+    expect(ids.sort()).toEqual(['z1', 'z2']);
+    expect(out.map((r) => r.sec)).toEqual([300, 300, 180, 3600, 1800]);
   });
 });

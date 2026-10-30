@@ -27,7 +27,7 @@ export function N1Quiz({ pool, onDone }) {
   const timer = useRef(null);
   useEffect(() => {
     timer.current = startTimer('vocab', 'N1 어휘 문제');
-    return () => timer.current?.finish();
+    return () => timer.current?.stop();
   }, []);
   const q = list[pos];
 

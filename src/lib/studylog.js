@@ -3,7 +3,8 @@
 //  · part: vocab 단어 · grammar 문법 · reading 독해 · listening 청해 · other 기타
 //  · 화면에서:
 //      const t = useStudyTimer('vocab', '단어 카드')  → t.sec · t.paused · t.add({ n, ok, learned }) · t.finish()
-//      (React 밖) const t = startTimer('grammar', '문법 퀴즈'); t.add({ n: 1, ok: 1 }); t.finish(); t.stop()
+//      (React 밖) const t = startTimer('grammar', '문법 퀴즈'); t.add({ n: 1, ok: 1 }); t.finish() 한 판 끝(계속 잼); 화면을 닫을 땐 꼭 t.stop()
+//      한 번에 하나만 잼: 새 startTimer 가 앞 타이머를 멈춤
 //      끝난 걸 바로: logStudy({ part: 'reading', sec: 1200, n: 10, ok: 8, what: '책 독해' })
 //  · 이 기기 localStorage 'jlpt:study'(최근 기록) · 'jlpt:study-q'(아직 안 올린 id). 인터넷·로그인 되면 올림. 서버가 없어도 이 기기엔 남음
 //  · 표 만드는 SQL = STUDY_SQL (Girok sync.js STUDY_SQL 과 똑같이 유지)
@@ -98,6 +99,27 @@ const writeJSON = (k, v) => {
 };
 let rows = readJSON(LS, []);
 let queue = readJSON(LQ, []);
+
+// 고침 1 (2026-10-30): 화면을 닫아도 타이머가 안 멈춰서(finish 만 부름) 다른 화면에서 공부하는 시간까지 겹쳐 셌음
+//  → 저절로 잰 줄은 그 날 다음에 시작한 저절로 잰 줄 시작 시각을 넘지 못하게 자름 (책·독해 기록처럼 직접 적은 건 그대로)
+const FIX1 = 'jlpt:study-fix1';
+const FIX1_AT = new Date('2026-10-31T00:00:00').getTime();
+const isTimed = (r) => !String(r.id).startsWith('drill-') && !String(r.what || '').startsWith('책으로');
+export function trimOverlaps(list, before = FIX1_AT) {
+  const byDay = {};
+  for (const r of list) if (isTimed(r) && r.at < before) (byDay[r.day] ||= []).push(r);
+  const fixed = new Map();
+  for (const day of Object.values(byDay)) {
+    day.sort((a, b) => a.at - b.at);
+    day.forEach((r, i) => {
+      const next = day[i + 1];
+      if (!next) return;
+      const cap = Math.max(0, Math.round((next.at - r.at) / 1000));
+      if (r.sec > cap) fixed.set(r.id, { ...r, sec: cap });
+    });
+  }
+  return { list: list.map((r) => fixed.get(r.id) || r), ids: [...fixed.keys()] };
+}
 const subs = new Set();
 function setRows(next) {
   const cut = ymd(addDays(new Date(), -KEEP_DAYS));
@@ -198,6 +220,8 @@ export async function pullStudy() {
     const { data, error } = await sb.from('study_log').select('id,day,at,sec,part,n,ok,learned,what').gte('day', since).order('at').limit(5000);
     if (error) throw error;
     setRows(mergeRows(rows, data, queue, since));
+    repair();
+    try { localStorage.setItem(FIX1, '1'); } catch { /* 다음에 또 함 */ }
     setStatus({ state: 'ok', error: null, noTable: false });
   } catch (e) {
     setStatus({ state: 'error', error: e.message, noTable: isNoTable(e) });
@@ -207,7 +231,21 @@ export async function pullStudy() {
 export function syncStudy() {
   return pushStudy().then(pullStudy);
 }
+// 고침 1: 이 기기 기록 + 서버에서 받은 기록을 한 번 다듬고 고친 줄을 다시 올림 (pullStudy 뒤에도 한 번)
+function repair() {
+  try {
+    if (localStorage.getItem(FIX1)) return;
+  } catch {
+    return;
+  }
+  const { list, ids } = trimOverlaps(rows);
+  if (ids.length) {
+    setRows(list);
+    for (const id of ids) enqueue(id);
+  }
+}
 if (typeof window !== 'undefined') {
+  repair();
   setTimeout(syncStudy, 1500);
   window.addEventListener('online', () => syncStudy());
   document.addEventListener('visibilitychange', () => (document.visibilityState === 'visible' ? syncStudy() : pushStudy()));
@@ -221,7 +259,10 @@ const INPUTS = ['pointerdown', 'keydown', 'touchstart', 'wheel'];
 
 // 보이고 만지는 동안만 잼 (손 안 대고 idleMs 지나면 멈춤, 화면 숨기면 멈춤). 1분마다 · 숨길 때 · finish/stop 때 같은 줄을 고쳐 씀
 //  opts.idleMs: 0 이면 손을 안 대도 계속 (듣기 연습처럼) — 화면을 숨기면 그땐 멈춤
+// 지금 재는 타이머 (한 번에 하나만 잼 — 새 화면이 재기 시작하면 앞 타이머는 저장하고 멈춤)
+let running = null;
 export function startTimer(part, what = '', opts = {}) {
+  running?.stop();
   const idleMs = opts.idleMs ?? IDLE_MS;
   const fresh = () => ({ id: uid(), at: Date.now(), ms: 0, n: 0, ok: 0, learned: 0, saved: '' });
   let c = fresh();
@@ -260,7 +301,7 @@ export function startTimer(part, what = '', opts = {}) {
   const fl = setInterval(flush, FLUSH_MS);
   step();
   let stopped = false;
-  return {
+  const api = {
     get sec() { return Math.round(c.ms / 1000); },
     get paused() { return paused; },
     add(x = {}) {
@@ -269,6 +310,7 @@ export function startTimer(part, what = '', opts = {}) {
     },
     // 한 판(퀴즈 한 세트 등) 끝 → 저장하고 다음은 새 줄로
     finish(x) {
+      if (stopped) return;
       if (x) this.add(x);
       step();
       flush();
@@ -279,6 +321,7 @@ export function startTimer(part, what = '', opts = {}) {
     stop() {
       if (stopped) return;
       stopped = true;
+      if (running === api) running = null;
       step();
       flush();
       clearInterval(iv);
@@ -292,6 +335,8 @@ export function startTimer(part, what = '', opts = {}) {
       return () => listeners.delete(f);
     },
   };
+  running = api;
+  return api;
 }
 
 // React 화면용: 화면이 떠 있는 동안 재고, 닫히면 저장. part·what 이 바뀌면 새로

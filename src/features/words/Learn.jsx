@@ -344,7 +344,7 @@ export function Study({ words, pool, newPerDay, revCap = 0, autoSpeak, readMode,
   const timer = useRef(null);
   useEffect(() => {
     timer.current = startTimer('vocab', '단어 공부');
-    return () => timer.current?.finish();
+    return () => timer.current?.stop();
   }, []);
 
   // 다음 할 것: 시각이 된 배우는 중 카드 → 새 단어 5개 → 끝

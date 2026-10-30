@@ -45,7 +45,7 @@ function useTimer(what) {
   const timer = useRef(null);
   useEffect(() => {
     timer.current = startTimer('vocab', what);
-    return () => timer.current?.finish();
+    return () => timer.current?.stop();
   }, [what]);
   return timer;
 }

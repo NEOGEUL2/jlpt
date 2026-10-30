@@ -77,7 +77,7 @@ export function Mock({ pool, kind, onDone }) {
     const iv = setInterval(() => setNow(Date.now()), 1000);
     return () => {
       clearInterval(iv);
-      timer.current?.finish();
+      timer.current?.stop();
     };
   }, [kind]);
   const sec = res ? res.sec : (now - t0) / 1000;
@@ -98,7 +98,7 @@ export function Mock({ pool, kind, onDone }) {
       else save('words', wid, () => ({ pri: 1 }));
     }
     timer.current?.add({ n: sc.n, ok: sc.ok });
-    timer.current?.finish();
+    timer.current?.stop();
     timer.current = null;
     setRes({ ...sc, sec: s });
     setPos(0);

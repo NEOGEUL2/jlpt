@@ -80,7 +80,7 @@ export function LeechStudy({ pool, onDone }) {
   const timer = useRef(null);
   useEffect(() => {
     timer.current = startTimer('vocab', '안 외워지는 단어');
-    return () => timer.current?.finish();
+    return () => timer.current?.stop();
   }, []);
   const id = list[pos];
   const w = byId[id];
