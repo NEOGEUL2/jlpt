@@ -13,6 +13,8 @@ import { LeechStudy, ReviewPlan, capOf } from './Leech';
 import { KanjiStudy } from './Kanji';
 import { PairDrill } from './Pairs';
 import { noGuess } from './groups';
+import { SkipCheck } from './Check';
+import { unchecked } from './check';
 import './words.css';
 
 const NEW_OPTS = [20, 30, 50, 100, 150, 200];
@@ -39,7 +41,7 @@ export default function Words() {
   const [round, setRound] = useState(0);
   // 다른 메뉴(시험)에서 바로 열기: sessionStorage 'jlpt:open' · 이벤트 'jlpt-open' (detail = mode)
   useEffect(() => {
-    const MODES = ['cards', 'n1', 'quiz', 'sort', 'pairs', 'wago', 'kanji', 'onkun'];
+    const MODES = ['cards', 'n1', 'quiz', 'sort', 'pairs', 'wago', 'kanji', 'onkun', 'check'];
     const open = (m) => MODES.includes(m) && setMode(m);
     try {
       const m = sessionStorage.getItem('jlpt:open');
@@ -60,6 +62,7 @@ export default function Words() {
   if (mode === 'n1') return <N1Route onDone={() => done()} />;
   if (mode === 'leech') return <LeechRoute onDone={() => done()} />;
   if (mode === 'pairs') return <PairsRoute onDone={() => done()} />;
+  if (mode === 'check') return <CheckRoute onDone={() => done()} />;
   if (mode === 'wago') return <WagoRoute onDone={() => done()} />;
   if (mode === 'kanji' || mode === 'onkun') return <KanjiRoute start={mode === 'onkun' ? 'onkun' : 'rad'} onDone={() => done()} />;
   if (mode === 'sort') return <Sort key={round} onDone={done} />;
@@ -86,6 +89,7 @@ function Home({ go }) {
   const daysNeed = Math.ceil(m.fresh / prefs.newPerDay);
   const pace = paceNeed(m.fresh, dd);
   const nWago = useMemo(() => words.filter((w) => noGuess(w) && !cards[w.id]?.skip).length, [words]); // eslint-disable-line react-hooks/exhaustive-deps
+  const nCheck = useMemo(() => unchecked(words, cards).length, [words, cards]);
   return (
     <div className="page wd">
       <header className="wd-top">
@@ -120,6 +124,7 @@ function Home({ go }) {
         <div className="row">
           <button type="button" className="btn" onClick={() => go('wago')} title="훈독 말·히라가나 말·가타카나 말만 (N2·N1)">한자로 못 맞히는 말 · {nWago}개</button>
           <button type="button" className="btn" onClick={() => go('pairs')} title="배운 단어 가운데 뜻이 겹치거나 헷갈렸던 짝">비슷한 말 구별</button>
+          {nCheck > 0 && <button type="button" className="btn" onClick={() => go('check')} title="'알아요'로 넘긴 단어를 뜻 고르기로 한 번씩 확인 (틀리면 새 단어로)">넘긴 단어 점검 · {nCheck}개</button>}
         </div>
         {prefs.order !== 'kanji' && (
           <p className="sub wd-note">팁: 새 단어 순서를 '아는 한자부터'로 바꾸면 N3에서 본 한자로 된 N2·N1 단어가 먼저 나와요. 한국 한자음으로 소리를 짐작할 수 있어 덜 낯설어요.</p>
@@ -244,6 +249,11 @@ function WagoRoute({ onDone }) {
   const pool = useMemo(() => all.filter(noGuess), [all]);
   const [limit, setLimit] = useState(() => newToday(cards, todayStr()) + 20);
   return <Study words={list} pool={pool} newPerDay={limit} revCap={capOf(prefs)} autoSpeak={prefs.autoSpeak} readMode={prefs.readMode} onDone={onDone} onMore={(n) => setLimit((x) => x + n)} />;
+}
+function CheckRoute({ onDone }) {
+  const words = useWords();
+  const pool = useWords(true);
+  return <SkipCheck words={words} pool={pool} onDone={onDone} />;
 }
 function LeechRoute({ onDone }) {
   const pool = useWords(true);

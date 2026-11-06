@@ -1,23 +1,73 @@
-// 문자·어휘 모의: 실제 시험처럼 問題1~4 순서, 답은 끝나고 한꺼번에 (앞 문제로 돌아가 고칠 수 있음), 시간 재기
+// 언어지식 모의: 실제 시험처럼 問題1~6 순서 (kind 에 따라 문자·어휘만·문법만·둘 다), 답은 끝나고 한꺼번에 (앞 문제로 돌아가 고칠 수 있음), 시간 재기
 //  · 끝나면 종류별 점수 + 틀린 문제 풀이 (漢字読み 는 보기마다 어디가 함정이었는지)
-//  · 틀린 단어: 배운 단어는 복습으로(10분 뒤), 안 배운 단어는 새 단어 맨 앞
+//  · 틀린 단어: 배운 단어는 복습으로(10분 뒤), 안 배운 단어는 새 단어 맨 앞 · 틀린 문법: 본 문법은 내일 복습으로
+//  · 공부 시간: 문자·어휘 문제를 보는 동안은 vocab, 문법 문제를 보는 동안은 grammar 로 따로 잼
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { save, useData } from '../../lib/store';
-import { EXAM_DATE } from '../../lib/srs';
+import { EXAM_DATE, grade } from '../../lib/srs';
 import { todayStr } from '../../lib/dates';
-import { startTimer } from '../../lib/studylog';
+import { logStudy, startTimer } from '../../lib/studylog';
 import { answer, clean } from '../words/learn';
 import { trapText } from '../words/yomi';
 import { splitExample } from '../words/words';
 import { KanjiParts } from '../words/Learn';
-import { SECTIONS, SEC_PER_Q, makeMock, pctOf, scoreMock, secOf } from './mock';
+import { SECTIONS, goalOf, kindName, makeMock, pctOf, scoreMock, secOf } from './mock';
 import '../words/words.css';
 import '../words/learn.css';
+import '../grammar/grammar.css';
+
+// 문법 문제 (問題5 빈칸 · 問題6 ★)
+function GramQuestion({ q, pick, onPick, reveal }) {
+  const cls = (i) => (reveal ? (i === q.answer ? 'is-right' : i === pick ? 'is-wrong' : '') : i === pick ? 'is-pick' : '');
+  return (
+    <>
+      {q.type === 'st' ? (
+        <p className="wd-q ex-st" lang="ja">
+          {q.pre}
+          {q.order.map((t, k) => (
+            <span key={k} className={`ex-slot ${k === q.star ? 'is-star' : ''}`}>{reveal ? t : k === q.star ? '★' : '　'}</span>
+          ))}
+          {q.post}
+        </p>
+      ) : (
+        <p className="wd-q" lang="ja">
+          {q.ask.split('（　）').map((p, k, arr) => (
+            <span key={k}>{p}{k < arr.length - 1 && <span className="ln-blank">{reveal ? q.options[q.answer].text.split(' / ')[k] ?? q.options[q.answer].text : '（　　）'}</span>}</span>
+          ))}
+        </p>
+      )}
+      <div className="wd-choices ex-choices ex-grid">
+        {q.options.map((o, i) => (
+          <button key={i} type="button" lang="ja" className={`wd-ch ${cls(i)}`} onClick={() => onPick?.(i)} disabled={reveal}>
+            <span className="num">{i + 1}</span>
+            <span className="ln-opt">{o.text}{reveal && o.m && <small lang="ko"> {o.m}</small>}</span>
+          </button>
+        ))}
+      </div>
+      {reveal && (
+        <div className="ln-fb">
+          <span><b lang="ja">{q.item.f}</b> {q.item.m}</span>
+          {q.k && <span className="sub">{q.k}</span>}
+          {q.type === 'st' && <span className="sub">순서: <span lang="ja">{q.order.map((t, k) => `${k + 1}) ${t}`).join('  ')}</span></span>}
+          <span className="sub">접속 · {q.item.c}</span>
+        </div>
+      )}
+    </>
+  );
+}
 
 const mmss = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
 
 function Question({ q, pick, onPick, reveal }) {
   const s = secOf(q.sec);
+  if (q.gid) {
+    return (
+      <>
+        <div className="ln-n1__p"><span lang="ja">問題{s.no} {s.ja}</span><small className="sub">{s.name} · {s.ko}</small></div>
+        <GramQuestion q={q} pick={pick} onPick={onPick} reveal={reveal} />
+      </>
+    );
+  }
   const cls = (i) => (reveal ? (i === q.answer ? 'is-right' : i === pick ? 'is-wrong' : '') : i === pick ? 'is-pick' : '');
   return (
     <>
@@ -63,25 +113,37 @@ function Question({ q, pick, onPick, reveal }) {
 
 export function Mock({ pool, kind, onDone }) {
   const cards = useData('words');
+  const gcards = useData('grammar');
   const cardsRef = useRef(cards);
   cardsRef.current = cards;
-  const [qs] = useState(() => makeMock(pool, cards, kind));
+  const gRef = useRef(gcards);
+  gRef.current = gcards;
+  const [qs] = useState(() => makeMock(pool, cards, kind, Math.random, gcards));
   const [picks, setPicks] = useState(() => qs.map(() => null));
   const [pos, setPos] = useState(0);
   const [res, setRes] = useState(null);
   const [t0] = useState(() => Date.now());
   const [now, setNow] = useState(Date.now());
   const timer = useRef(null);
+  // 지금 보는 문제가 문자·어휘인지 문법인지에 따라 시간을 따로 잼
+  const part = qs[pos]?.gid ? 'grammar' : 'vocab';
+  const partRef = useRef(null);
   useEffect(() => {
-    timer.current = startTimer('vocab', kind === 'full' ? '문자·어휘 모의 25문제' : '문자·어휘 미니 모의');
+    if (res || partRef.current === part) return;
+    timer.current?.finish();
+    timer.current?.stop();
+    partRef.current = part;
+    timer.current = startTimer(part, kindName(kind));
+  }, [part, res, kind]);
+  useEffect(() => {
     const iv = setInterval(() => setNow(Date.now()), 1000);
     return () => {
       clearInterval(iv);
       timer.current?.stop();
     };
-  }, [kind]);
+  }, []);
   const sec = res ? res.sec : (now - t0) / 1000;
-  const goal = qs.length * SEC_PER_Q;
+  const goal = goalOf(qs);
   const q = qs[pos];
   const left = picks.filter((p) => p === null).length;
 
@@ -91,15 +153,24 @@ export function Mock({ pool, kind, onDone }) {
     const at = Date.now();
     const s = Math.round((at - t0) / 1000);
     const id = `${kind}-${at}`;
-    save('mock', id, { id, day: today, at, kind, sec: s, parts: sc.parts, wrong: sc.wrong });
+    save('mock', id, { id, day: today, at, kind, sec: s, parts: sc.parts, wrong: sc.wrong, wrongG: sc.wrongG });
     for (const wid of sc.wrong) {
       const c = cardsRef.current[wid];
       if (c?.t && !c.skip) save('words', wid, () => clean(answer(c, false, today, at, EXAM_DATE)));
       else save('words', wid, () => ({ pri: 1 }));
     }
-    timer.current?.add({ n: sc.n, ok: sc.ok });
+    // 틀린 문법: 본 적 있으면 '다시'(내일 복습), 안 본 것은 문법 퀴즈에서 새로 나올 때 배움
+    for (const gid of sc.wrongG) {
+      const c = gRef.current[gid];
+      if (c?.t) save('grammar', gid, grade(c, 1, today, EXAM_DATE));
+    }
+    // 문제 수는 영역마다: 지금 재는 쪽엔 timer 로, 다른 쪽은 시간 없이 한 줄
+    const cnt = { vocab: sc.vocab, grammar: sc.grammar };
+    const other = part === 'vocab' ? 'grammar' : 'vocab';
+    timer.current?.add({ n: cnt[part][1], ok: cnt[part][0] });
     timer.current?.stop();
     timer.current = null;
+    if (cnt[other][1]) logStudy({ id: `mock-${at}-${other}`, at, sec: 0, part: other, n: cnt[other][1], ok: cnt[other][0], what: kindName(kind) });
     setRes({ ...sc, sec: s });
     setPos(0);
   };
@@ -145,7 +216,7 @@ export function Mock({ pool, kind, onDone }) {
               );
             })}
           </div>
-          {wrongQs.length > 0 ? <p className="sub">틀린 단어는 복습(안 배운 단어는 새 단어 맨 앞)에 넣었어요. 아래에서 풀이를 볼 수 있어요.</p> : <p className="sub">전부 맞혔어요!</p>}
+          {wrongQs.length > 0 ? <p className="sub">틀린 단어는 복습(안 배운 단어는 새 단어 맨 앞)에{res.wrongG.length > 0 ? ', 틀린 문법은 내일 문법 복습에' : ''} 넣었어요. 아래에서 풀이를 볼 수 있어요.</p> : <p className="sub">전부 맞혔어요!</p>}
           <div className="row"><button type="button" className="btn btn--pri" onClick={onDone}>처음으로</button></div>
         </section>
         {wrongQs.map(({ q: x, i }) => (
