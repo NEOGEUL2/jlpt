@@ -1,4 +1,4 @@
-// 시험: 시험까지 날마다 할 일(plan.js, 다른 메뉴 기록으로 저절로 체크) · 문자·어휘 모의 25문제 / 미니 10문제(Mock.jsx) · 모의 기록
+// 시험: 시험까지 날마다 할 일(plan.js, 다른 메뉴 기록으로 저절로 체크) · 언어지식 모의 40 / 문자·어휘 25 / 문법 15 / 미니 10 (Mock.jsx) · 모의 기록
 import { useMemo, useState } from 'react';
 import { useData } from '../../lib/store';
 import { EXAM_DATE } from '../../lib/srs';
@@ -7,8 +7,9 @@ import { studyDay, useStudyLog } from '../../lib/studylog';
 import { LEVELS, allWords, newToday, unsorted } from '../words/words';
 import { REV_CAP, reviewIds } from '../words/learn';
 import { dueWrong, toList } from '../reading/drill';
+import { checkedToday, unchecked } from '../words/check';
 import { Mock } from './Mock';
-import { SECTIONS, mockList, sectionStats, weakSection } from './mock';
+import { SECTIONS, kindName, mockList, sectionStats, weakSection } from './mock';
 import { phaseDates, phaseOf, todayTasks } from './plan';
 import './exam.css';
 
@@ -28,10 +29,10 @@ const goTo = (key, open) => {
   window.dispatchEvent(new CustomEvent('jlpt-go', { detail: key }));
 };
 // 약한 문제 종류 → 연습할 곳
-const PRACTICE = { yomi: ['quiz', '한자 읽기 퀴즈'], ctx: ['n1', 'N1 모양 문제'], para: ['pairs', '비슷한 말 구별'], use: ['n1', 'N1 모양 문제'] };
+const PRACTICE = { yomi: ['quiz', '한자 읽기 퀴즈'], ctx: ['n1', 'N1 모양 문제'], para: ['pairs', '비슷한 말 구별'], use: ['n1', 'N1 모양 문제'], gf: [null, '문법 퀴즈', 'grammar'], st: [null, '문법 퀴즈(★ 켜기)', 'grammar'] };
 
 export default function Exam() {
-  const [mock, setMock] = useState(null); // null · 'full' · 'mini'
+  const [mock, setMock] = useState(null); // null · 'lang' · 'full' · 'gram' · 'mini'
   const [round, setRound] = useState(0);
   const own = useData('own');
   const pool = useMemo(() => allWords(own, LEVELS), [own]);
@@ -59,7 +60,9 @@ function Home({ pool, start }) {
       grammarN: day.sessions.filter((s) => s.part === 'grammar').reduce((a, s) => a + (s.n || 0), 0),
       drillToday: drills.filter((r) => r.date === today).length,
       wrongDue: dueWrong(drills, today).length,
-      mockToday: { full: mocks.some((r) => r.day === today && r.kind === 'full'), mini: mocks.some((r) => r.day === today && r.kind === 'mini') },
+      skipLeft: unchecked(pool, cards).length,
+      checkedToday: checkedToday(cards, today),
+      mockToday: Object.fromEntries(['lang', 'full', 'gram', 'mini'].map((k) => [k, mocks.some((r) => r.day === today && r.kind === k)])),
     };
   }, [cards, prefs, drill, mocks.length, log, today, pool]); // eslint-disable-line react-hooks/exhaustive-deps
   const tasks = todayTasks(phase, st);
@@ -103,11 +106,13 @@ function Home({ pool, start }) {
       </section>
 
       <section className="card">
-        <div className="wd-hd"><b>문자·어휘 모의</b><small>실제 시험 問題1~4 순서</small></div>
-        <p className="sub">漢字読み 6 · 文脈規定 7 · 言い換え類義 6 · 用法 6. 답은 끝나고 한꺼번에 맞춰 봐요. 한 문제 30초가 목표예요 (어휘를 빨리 끝내야 독해에 시간이 남아요).</p>
+        <div className="wd-hd"><b>언어지식 모의</b><small>실제 시험 問題1~6 순서</small></div>
+        <p className="sub">문자·어휘 25(漢字読み 6 · 文脈規定 7 · 言い換え類義 6 · 用法 6) + 문법 15(文法形式判断 10 · ★ 文の組み立て 5). 답은 끝나고 한꺼번에 맞춰 봐요. 40문제를 25분 안에 끝내야 독해에 시간이 남아요.</p>
         <div className="row">
-          <button type="button" className="btn btn--pri" onClick={() => start('full')}>모의 25문제</button>
-          <button type="button" className="btn" onClick={() => start('mini')}>미니 10문제</button>
+          <button type="button" className="btn btn--pri" onClick={() => start('lang')}>언어지식 40문제</button>
+          <button type="button" className="btn" onClick={() => start('full')}>문자·어휘 25</button>
+          <button type="button" className="btn" onClick={() => start('gram')}>문법 15</button>
+          <button type="button" className="btn" onClick={() => start('mini')}>미니 10</button>
         </div>
         {mocks.length > 0 && (
           <>
@@ -127,7 +132,7 @@ function Home({ pool, start }) {
             {weak && weak.pct < 80 && PRACTICE[weak.k] && (
               <div className="row">
                 <span className="sub">가장 약한 곳: <b lang="ja">{SECTIONS.find((s) => s.k === weak.k).name}</b> {weak.pct}%</span>
-                <button type="button" className="btn" onClick={() => goTo('words', PRACTICE[weak.k][0])}>{PRACTICE[weak.k][1]}로 연습</button>
+                <button type="button" className="btn" onClick={() => goTo(PRACTICE[weak.k][2] || 'words', PRACTICE[weak.k][0])}>{PRACTICE[weak.k][1]}로 연습</button>
               </div>
             )}
             <ul className="ex-hist">
@@ -137,7 +142,7 @@ function Home({ pool, start }) {
                 return (
                   <li key={r.id}>
                     <span className="num">{md(r.day)}</span>
-                    <span>{r.kind === 'full' ? '모의 25' : '미니 10'}</span>
+                    <span>{kindName(r.kind)}</span>
                     <b className="num">{ok}/{n}</b>
                     <span className="num sub">{mmss(r.sec)}</span>
                   </li>

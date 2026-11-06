@@ -24,3 +24,7 @@
 .ex-nav { justify-content: space-between; }
 @media (max-width: 560px) { .ex-grid { grid-template-columns: 1fr; } .ex-phases { grid-template-columns: 1fr; } }
 .ex.wd-sess { grid-template-rows: auto auto 1fr auto; }
+/* 問題6 ★: 빈칸 네 칸 중 ★ 자리 */
+.ex-st { line-height: 2.2; }
+.ex-slot { display: inline-block; min-width: 3.2em; margin: 0 3px; border-bottom: 2px solid var(--line); text-align: center; padding: 0 4px; }
+.ex-slot.is-star { color: var(--org); border-color: var(--org); font-weight: 700; }

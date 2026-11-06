@@ -193,7 +193,7 @@ export function readingTwists(r) {
   return [...out];
 }
 
-const shuffle = (a, rnd = Math.random) => {
+export const shuffle = (a, rnd = Math.random) => {
   const x = [...a];
   for (let i = x.length - 1; i > 0; i--) {
     const j = Math.floor(rnd() * (i + 1));

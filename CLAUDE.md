@@ -14,7 +14,7 @@
   - `exam/` 시험(맨 위 메뉴) · `words/` 단어 카드 · `grammar/` 문법 퀴즈 · `reading/` 독해·청해 · `stats/` 공부 기록 · `settings/` 설정(서버 연결·로그인)
 - 단어 급수 목록 `words/lists/n3·n2·n1.tsv`(open-anki-jlpt-decks, MIT, NOTICE.md) + 한국어 뜻 `lists/ko.txt`(단어|읽기|뜻, 없으면 영어 뜻) · 고른 급수 `prefs.main.levels`
 - 공통 `src/lib/`: `store.js` 저장 · `supabase.js` 서버 연결 · `srs.js` 복습 주기(단어·문법 같이) · `dates.js` · `studylog.js` 공부 시간
-- 다른 메뉴로 보내기: `window.dispatchEvent(new CustomEvent('jlpt-go', { detail: 'words' }))` · 단어 안 화면까지: sessionStorage `jlpt:open` + 이벤트 `jlpt-open`(detail = mode: cards·n1·quiz·sort·pairs·wago·kanji·onkun)
+- 다른 메뉴로 보내기: `window.dispatchEvent(new CustomEvent('jlpt-go', { detail: 'words' }))` · 단어 안 화면까지: sessionStorage `jlpt:open` + 이벤트 `jlpt-open`(detail = mode: cards·n1·quiz·sort·pairs·wago·kanji·onkun·check)
 
 ## 저장 규칙
 - `useData(묶음)` → `{ id: 기록 }`, `save(묶음, id, patch)`, `remove(묶음, id)` (src/lib/store.js). localStorage 직접 쓰지 말 것 (기기별 화면 기억만 `jlpt:` 접두어)
@@ -55,7 +55,9 @@
 - 사용자 수준: N3까지 익숙·뜻은 대충 짐작, 음독/훈독은 정확히 모름, N2·N1 단어는 모름 → 시험 모양으로 연습 + 한국 한자음 활용 + 짐작 안 되는 말 따로
 - 漢字読み 보기 `words/yomi.js` `yomiChoices`: 실제 시험처럼 함정 두 군데 2×2(重量 じゅうりょう·じゅりょう·しゅうりょう·しゅりょう). 함정은 한자 소리 칸 안에서만(`wordKinds` 칸, 오쿠리가나 X): 탁음·반탁음·작은 ゃゅょ·촉음(칸 끝 つくちき↔っ)·장음(음독 칸 끝)·같은 한자 다른 음독. 모자라면 끝 글자 같은 다른 단어 읽기. 보기마다 `traps` → 답 뒤 '장음·탁음' 표시(`trapText`). 단어 '한자 읽기 퀴즈'도 이것
 - 모의 `exam/mock.js` `makeMock(pool, cards, 'full'|'mini')`: 問題1 漢字読み 6 · 2 文脈規定 7 · 3 言い換え類義 6 · 4 用法 6 (mini 3·3·2·2). N3 빼고, 漢字読み 는 2글자+ 음독 말 위주 + 오쿠리가나 훈독 1개. 화면 `Mock.jsx`: 답은 끝나고 한꺼번에, 번호로 앞뒤 이동, 한 문제 30초 목표(`SEC_PER_Q`), 틀린 단어는 복습/새 단어 맨 앞. 기록 묶음 `mock` `{ id, day, at, kind, sec, parts: { yomi: [맞힘, 수] … }, wrong }` → 종류별 최근 5번 정답률·가장 약한 곳 연습 버튼
-- 날마다 할 일 `exam/plan.js`: 단계 익히기(~D-15, 미니 모의)·시험 모양(D-14~D-8, 모의 25)·마무리(D-7~D-1, 새 단어 없음). 체크는 저장 없이 다른 기록에서: 복습 남은 수·오늘 새 단어(`newToday`)·문법 studylog n·drill 오늘 기록·`dueWrong`·mock 오늘 기록
+- 언어지식 모의(2026-11-06): `mock.js` SECTIONS 에 問題5 文法形式判断(`gf`, grammar/quiz `makeQuestion` 빈칸, 본 횟수+1 문장) · 問題6 文の組み立て(`st`, ★ 자리 조각 고르기, 같은 조각 있는 문법은 `starOk`로 뺌). 종류 `KINDS` lang 언어지식 40(기본)·full 문자·어휘 25·gram 문법 15·mini 10, 목표 시간 `goalOf`(어휘 30초·문법 45초·★ 60초 → 40문제 25분). 문법은 `gramPick`(틀린·간격 짧은 것 절반 + 아무거나), 틀린 문법은 본 것만 srs '다시', 기록 `wrongG`. 공부 시간은 보는 문제에 따라 vocab/grammar 타이머를 바꿔 잼(다른 쪽 문제 수는 `mock-<at>-<part>` 0초 줄)
+- 넘긴 단어 점검 `words/check.js`·`Check.jsx`(mode 'check'): '알아요'(skip) 단어를 N1→N2→교재→N3 순으로 20개 뜻 고르기 + 모르겠어요(5). 맞히면 `ck` 날짜만, 틀리면 `{pri, ck}` 새 단어 맨 앞. 날마다 할 일에 남았을 때만(마무리 단계 빼고)
+- 날마다 할 일 `exam/plan.js`: 단계 익히기(~D-15, 미니 모의)·시험 모양(D-14~D-8, 언어지식 모의 40 — lang 이나 full+gram 이면 체크)·마무리(D-7~D-1, 새 단어 없음). 체크는 저장 없이 다른 기록에서: 복습 남은 수·오늘 새 단어(`newToday`)·문법 studylog n·drill 오늘 기록·`dueWrong`·mock 오늘 기록
 - 새 단어 순서 '아는 한자부터'(`order: 'kanji'`, words.js `knownKanjiRate`): N2·N1을 N3 단어에 나온 한자 비율 높은 순(같은 비율 안은 섞인 순서 → 같은 한자끼리 몰리지 않음), N3는 뒤
 - 한자로 못 맞히는 말 `words/groups.js` `noGuess`(N2·N1·교재 중 훈독·湯桶·熟字訓·히라가나·가타카나 말) → 단어 첫 화면 버튼 → `Study`를 그 말들로만(복습도), 이번에 새 단어 20개
 - 비슷한 말 구별 `Pairs.jsx` + `confusablePairs`(배운 단어만: 헷갈렸던 짝 `cf` → 한국어 뜻 조각 겹치는 짝) · `pairQuiz`: 뜻 → 어느 말, 짝마다 앞 절반·뒤 절반에 떨어져 나옴, 저만 가진 뜻 조각이 있는 쪽만 물음. 답 뒤 두 말 나란히(다른 뜻 조각 굵게)
