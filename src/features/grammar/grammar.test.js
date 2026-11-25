@@ -126,3 +126,37 @@ describe('등급 · 약한 문법', () => {
     expect(weakList({ iza: { l: 1, t: '2026-10-01' }, nari: { l: 3 }, beku: { l: 0 }, zz: { l: 9 } })).toEqual(['nari', 'iza']);
   });
 });
+
+// 후리가나: 화면에 나오는 일본어엔 다 읽기가 있는지
+import { FURI } from './furi-data.js';
+import { furiParts } from './Furi.jsx';
+import { sentences as sents, makeQuestion as mq } from './quiz.js';
+import { MORE as MR } from './more.js';
+describe('후리가나', () => {
+  const KJ = /[㐀-鿿々]/;
+  const need = (t) => !KJ.test(t) || FURI[t];
+  it('문법·예문·빈칸 문장·보기·★ 조각에 읽기가 있음', () => {
+    const miss = [];
+    for (const g of GRAMMAR) {
+      for (const t of [g.f, g.c, g.ex.j]) if (!need(t)) miss.push(t);
+      for (const e of sents(g)) {
+        for (const t of [e.full, e.a, ...e.w, ...e.s.split('（　）'), ...e.a.split(' / ')]) if (!need(t)) miss.push(t);
+      }
+      const st = MR[g.id]?.st;
+      if (st) for (const t of [st[0], ...st[1], st[2]]) if (!need(t)) miss.push(t);
+      if (MR[g.id]?.n && !need(MR[g.id].n)) miss.push(MR[g.id].n);
+      const q = mq(g, 'fill', Math.random, 0);
+      for (const c of Object.values(q.notes)) if (c.f && !need(c.f)) miss.push(c.f);
+    }
+    expect(miss).toEqual([]);
+  });
+  it('잘 틀리는 읽기', () => {
+    const r = (t) => furiParts(t).filter((p) => Array.isArray(p)).map((p) => p.join('=')).join(' ');
+    const has = (k, s) => Object.keys(FURI).find((t) => t.includes(k) && FURI[t].includes(s));
+    expect(has('一人', '{一人|ひとり}')).toBeTruthy();
+    expect(has('日本', '{日本|にほん}')).toBeTruthy();
+    expect(has('3月', '{月|がつ}')).toBeTruthy();
+    expect(r('東京公演を皮切りに、全国ツアーが始まった。')).toBe('東京=とうきょう 公演=こうえん 皮切=かわき 全国=ぜんこく 始=はじ');
+    expect(JSON.stringify(FURI)).not.toMatch(/\{(日本|夜中|大勢|町中)\|(にっぽん|やちゅう|たいせい|まちなか)\}/);
+  });
+});

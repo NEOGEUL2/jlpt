@@ -56,6 +56,7 @@ function Home({ pool, start }) {
       newDone: newToday(cards, today),
       newGoal: (prefs.newPerDay || 50) + more,
       fresh: unsorted(pool, cards).length,
+      grammarGoal: prefs.gqNew,
       grammarN: day.sessions.filter((s) => s.part === 'grammar').reduce((a, s) => a + (s.n || 0), 0),
       drillToday: drills.filter((r) => r.date === today).length,
       wrongDue: dueWrong(drills, today).length,

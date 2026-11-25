@@ -29,6 +29,8 @@
 - `more.js` 문법마다 더 붙는 것(같은 id): `n` 비슷한 문법과 차이 · `qk` q 번역 · `x` 빈칸 문장 2개 `['…【답】…', 한국어, 틀린 보기 3]` · `st` ★ 문장 만들기 `[앞, 조각 4개(맞는 순서), 뒤, ★ 자리]`. 빈칸 문장은 볼 때마다 돌아감(`sentences`, 본 횟수 n+l), 다시 풀기는 다른 문장(`againOf`)
 - `gloss.js` `glossOf(보기)` → 답 화면 '보기 뜻'. 목록에 없는 보기는 `EXTRA`에 — 새 보기를 넣으면 테스트가 뜻 없는 보기를 알려 줌
 - 처음 보는 문법(`!cards[id].t`)은 소개 카드(Intro) 먼저, ★ 문제는 익숙해진 뒤에만. ★는 시험처럼 ★ 자리로 채점, 시간 기준 30초/10초
+- 후리가나 `Furi.jsx`(`<Furi t={글} />`, 기기별 켜고 끄기 `jlpt:furi`) ← `furi-data.js`(만든 파일: 화면 글 → `{漢字|かんじ}`). 문법 글을 고치거나 더하면 `npm i --no-save kuromoji@0.1.2 && node tools/furi-build.mjs` 로 다시 만들기 · 잘못 읽힌 건 `tools/furi-fix.mjs`. 테스트가 읽기 없는 글을 알려 줌
+- 하루 새 문법 개수 `prefs.main.gqNew`(10·20·30·50, 기본 10) — 시험 메뉴 '문법 퀴즈 n문제'도 이 수(20 아래면 20)
 - `Quiz.jsx` 화면(저장 함수는 props로), `index.jsx`가 store '문법' 묶음·srs·studylog 이어 줌. 하루 새 문법 10개, 틀린 건 판 끝에 한 번 더(기록은 처음 푼 것만), 홈에 '헷갈리는 묶음끼리 풀기'. 기기별 기억 `jlpt:gq-kinds`(+`jlpt:gq-star` ★를 예전 선택에 한 번 더해 줌)
 
 ## 독해·청해 (`src/features/reading/`)

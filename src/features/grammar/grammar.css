@@ -126,3 +126,11 @@
 .gq-opt.right i { color: var(--grn); font-weight: 700; }
 .gq-opt.wrong i { color: var(--red); font-weight: 700; }
 .gq-opt em { color: var(--sub); font-style: normal; font-size: 12.5px; }
+
+/* 후리가나 */
+.gq ruby rt { font-size: 0.5em; font-weight: 400; color: var(--sub); letter-spacing: 0; }
+.gq ruby { ruby-position: over; }
+.gq-ask.jp, .gq-full, .gq-ex, .gq-choices .jp, .gq-pieces .jp { line-height: 2; }
+.gq-star { line-height: 2.6; }
+.gq-slot.star::before { top: -1.6em; }
+.gq-sec-n { font-weight: 400; color: var(--sub); margin-left: 6px; }

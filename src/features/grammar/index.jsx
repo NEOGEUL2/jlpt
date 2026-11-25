@@ -10,6 +10,7 @@ const KNOWN = 7; // 간격 7일 이상 = 익힘 (srs maturity 와 같은 기준)
 
 export default function Grammar() {
   const cards = useData('grammar');
+  const prefs = useData('prefs').main || {};
   const timer = useStudyTimer('grammar', '문법 퀴즈');
   return (
     <Quiz
@@ -23,6 +24,8 @@ export default function Grammar() {
       queue={queue}
       today={todayStr()}
       exam={EXAM_DATE}
+      newPerDay={prefs.gqNew || 10}
+      setNewPerDay={(n) => save('prefs', 'main', { gqNew: n })}
       onStep={(id, ok) => timer.add({ n: 1, ok: ok ? 1 : 0 })}
       onLog={() => timer.finish()}
     />
