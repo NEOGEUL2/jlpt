@@ -38,7 +38,8 @@ export function todayTasks(phase, s) {
   const out = [];
   out.push({ k: 'rev', t: s.due ? `단어 복습 ${s.due}장` : '단어 복습', sub: '오늘 날짜가 된 복습 다 하기', done: s.due === 0, go: 'words', open: 'cards' });
   if (!final && s.fresh > 0) out.push({ k: 'new', t: `새 단어 ${s.newGoal}개`, sub: `오늘 ${s.newDone}개 봄`, done: s.newDone >= s.newGoal, go: 'words', open: 'cards' });
-  out.push({ k: 'grammar', t: final ? '문법 복습 한 판' : '문법 퀴즈 20문제', sub: `오늘 ${s.grammarN}문제`, done: s.grammarN >= (final ? 10 : 20), go: 'grammar' });
+  const gGoal = Math.max(20, s.grammarGoal || 0); // 문법 화면에서 고른 하루 새 문법 수 (20 아래면 20)
+  out.push({ k: 'grammar', t: final ? '문법 복습 한 판' : `문법 퀴즈 ${gGoal}문제`, sub: `오늘 ${s.grammarN}문제`, done: s.grammarN >= (final ? 10 : gGoal), go: 'grammar' });
   if (phase.k === 'learn') out.push({ k: 'mock', t: '문자·어휘 미니 모의 10문제', sub: '시험 순서 그대로 · 問題1~4', done: s.mockToday.mini || s.mockToday.full, mock: 'mini' });
   else out.push({ k: 'mock', t: '문자·어휘 모의 25문제 (시간 재기)', sub: '목표 12분 30초 · 실제 시험 순서', done: s.mockToday.full, mock: 'full' });
   out.push({ k: 'drill', t: final ? '독해 한 회 시간 재고 풀기' : '교재 독해·청해 한 묶음', sub: '푼 뒤 독해·청해에 점수 적기', done: s.drillToday > 0, go: 'reading' });

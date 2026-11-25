@@ -3,9 +3,10 @@
 //  onStep(id, ok) 한 문제 풀 때마다 (처음 푼 것만) · onLog({part,sec,n,ok,what}) 한 판 끝
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { GRAMMAR } from './data.js';
+import Furi, { FuriOn, furiKey, loadFuri } from './Furi.jsx';
 import { GROUPS, KINDS, againOf, byId, gradeOf, makeRound, moreOf, sentences, shuffle, siblings, todayIds, weakList } from './quiz.js';
 
-const NEW_PER_DAY = 10;
+export const NEW_CHOICES = [10, 20, 30, 50]; // 하루 새 문법 개수 (prefs.main.gqNew, 기본 10)
 const kindKey = 'jlpt:gq-kinds'; // 이 기기에서 고른 문제 종류
 const starKey = 'jlpt:gq-star'; // ★ 문장 만들기를 한 번 켜 줬는지 (새로 생긴 종류라 예전 선택에 한 번 더해 줌)
 const loadKinds = () => {
@@ -22,7 +23,19 @@ const loadKinds = () => {
   return ['fill', 'star', 'mean'];
 };
 
-export default function GrammarQuiz({ cards = {}, setCard, grade, queue, today, exam, onStep, onLog }) {
+export default function GrammarQuiz(props) {
+  const [furi, setFuri] = useState(loadFuri);
+  useEffect(() => {
+    try { localStorage.setItem(furiKey, furi ? '1' : '0'); } catch {}
+  }, [furi]);
+  return (
+    <FuriOn.Provider value={furi}>
+      <Home {...props} furi={furi} setFuri={setFuri} />
+    </FuriOn.Provider>
+  );
+}
+
+function Home({ cards = {}, setCard, grade, queue, today, exam, onStep, onLog, newPerDay = 10, setNewPerDay, furi, setFuri }) {
   const [round, setRound] = useState(null); // { qs, title }
   const [view, setView] = useState('home'); // home | list
   const [kinds, setKinds] = useState(loadKinds);
@@ -31,7 +44,7 @@ export default function GrammarQuiz({ cards = {}, setCard, grade, queue, today, 
   }, [kinds]);
 
   const newToday = GRAMMAR.filter((g) => cards[g.id]?.t === today && (cards[g.id].n || 0) + (cards[g.id].l || 0) <= 1).length;
-  const ids = useMemo(() => todayIds(cards, today, Math.max(0, NEW_PER_DAY - newToday), queue), [cards, today]);
+  const ids = useMemo(() => todayIds(cards, today, Math.max(0, newPerDay - newToday), queue), [cards, today, newPerDay]);
   const weak = useMemo(() => weakList(cards), [cards]);
   const seen = GRAMMAR.filter((g) => cards[g.id]?.t).length;
   const known = GRAMMAR.filter((g) => cards[g.id]?.i >= 7).length;
@@ -88,6 +101,19 @@ export default function GrammarQuiz({ cards = {}, setCard, grade, queue, today, 
         {KINDS.map((x) => (
           <button key={x.k} className={kinds.includes(x.k) ? 'on' : ''} onClick={() => toggle(x.k)}>{x.label}</button>
         ))}
+      </div>
+
+      <div className="gq-sec">하루 새 문법 <span className="gq-sec-n">오늘 {newToday}개 시작함</span></div>
+      <div className="gq-chips">
+        {NEW_CHOICES.map((n) => (
+          <button key={n} className={newPerDay === n ? 'on' : ''} onClick={() => setNewPerDay?.(n)}>{n}개</button>
+        ))}
+      </div>
+
+      <div className="gq-sec">후리가나</div>
+      <div className="gq-chips">
+        <button className={furi ? 'on' : ''} onClick={() => setFuri(true)}><ruby>漢字<rt>かんじ</rt></ruby> 읽기 보기</button>
+        <button className={furi ? '' : 'on'} onClick={() => setFuri(false)}>숨기기</button>
       </div>
 
       <div className="gq-sec">헷갈리는 묶음끼리 풀기</div>
@@ -235,7 +261,7 @@ function Play({ round, onAnswer, onEnd }) {
           <StarText q={q} placed={placed} reveal={pick != null} onUnplace={unplace} />
         ) : (
           <div className={`gq-ask ${q.kind === 'fill' ? 'jp' : q.kind === 'mean' ? 'jp big' : 'ko'}`} lang={q.kind === 'form' ? 'ko' : 'ja'}>
-            {q.kind === 'fill' ? <FillText s={q.ask} fill={pick != null ? q.answer : null} /> : q.ask}
+            {q.kind === 'fill' ? <FillText s={q.ask} fill={pick != null ? q.answer : null} /> : q.kind === 'mean' ? <Furi t={q.ask} /> : q.ask}
           </div>
         )}
       </div>
@@ -246,7 +272,7 @@ function Play({ round, onAnswer, onEnd }) {
             return (
               <button key={p.i} className={used ? 'used' : ''} disabled={used || pick != null} onClick={() => place(p)}>
                 <span className="gq-k">{k + 1}</span>
-                <span className="jp" lang="ja">{p.t}</span>
+                <span className="jp" lang="ja"><Furi t={p.t} /></span>
               </button>
             );
           })}
@@ -260,7 +286,7 @@ function Play({ round, onAnswer, onEnd }) {
               onClick={() => choose(c)}
             >
               <span className="gq-k">{k + 1}</span>
-              <span className={q.kind === 'mean' ? 'ko' : 'jp'} lang={q.kind === 'mean' ? 'ko' : 'ja'}>{c}</span>
+              <span className={q.kind === 'mean' ? 'ko' : 'jp'} lang={q.kind === 'mean' ? 'ko' : 'ja'}>{q.kind === 'mean' ? c : <Furi t={c} />}</span>
             </button>
           ))}
         </div>
@@ -277,17 +303,17 @@ function Intro({ item, onGo }) {
   return (
     <div className="gq-intro">
       <div className="gq-sub">새 문법</div>
-      <div className="gq-intro-f jp" lang="ja">{item.f}</div>
+      <div className="gq-intro-f jp" lang="ja"><Furi t={item.f} /></div>
       <div className="gq-intro-m">{item.m}</div>
-      <div className="gq-conn">접속 · {item.c}</div>
-      {m.n && <div className="gq-tip">{m.n}</div>}
-      <div className="gq-ex jp" lang="ja">{item.ex.j}</div>
+      <div className="gq-conn">접속 · <Furi t={item.c} /></div>
+      {m.n && <div className="gq-tip"><Furi t={m.n} /></div>}
+      <div className="gq-ex jp" lang="ja"><Furi t={item.ex.j} /></div>
       <div className="gq-exk">{item.ex.k}</div>
       {sib.length > 0 && (
         <div className="gq-sib">
           <div className="gq-sec">같은 묶음 ({item.g})</div>
           {sib.map((x) => (
-            <div key={x.id}><b className="jp" lang="ja">{x.f}</b> <span>{x.m}</span></div>
+            <div key={x.id}><b className="jp" lang="ja"><Furi t={x.f} /></b> <span>{x.m}</span></div>
           ))}
         </div>
       )}
@@ -303,7 +329,7 @@ function Sheet({ q, item, pick, ok, placed, onNext }) {
   return (
     <div className={`gq-sheet ${ok ? 'ok' : 'no'}`}>
       <div className="gq-sheet-h">
-        {ok ? (q.kind === 'star' && !orderOk ? '★ 자리는 맞았어요! 순서는 아래처럼' : '정답이에요!') : `정답: ${q.answer}`}
+        {ok ? (q.kind === 'star' && !orderOk ? '★ 자리는 맞았어요! 순서는 아래처럼' : '정답이에요!') : <>정답: {q.kind === 'mean' ? q.answer : <span className="jp" lang="ja"><Furi t={q.answer} /></span>}</>}
       </div>
       <div className="gq-sheet-body">
         {q.full && (
@@ -311,26 +337,26 @@ function Sheet({ q, item, pick, ok, placed, onNext }) {
             <div className="jp" lang="ja">
               {q.kind === 'star' ? (
                 <>
-                  {q.pre}
+                  <Furi t={q.pre} />
                   {q.order.map((t, k) => (
-                    <span key={k} className={k === q.star ? 'gq-starw' : 'gq-ord'}>{t}</span>
+                    <span key={k} className={k === q.star ? 'gq-starw' : 'gq-ord'}><Furi t={t} /></span>
                   ))}
-                  {q.post}
+                  <Furi t={q.post} />
                 </>
               ) : (
-                q.full
+                <Furi t={q.full} />
               )}
             </div>
             {q.k && <div className="gq-exk">{q.k}</div>}
           </div>
         )}
         <div className="gq-note">
-          <b className="jp" lang="ja">{item.f}</b> {item.m}
-          <div className="gq-conn">접속 · {item.c}</div>
-          {m.n && <div className="gq-tip">{m.n}</div>}
+          <b className="jp" lang="ja"><Furi t={item.f} /></b> {item.m}
+          <div className="gq-conn">접속 · <Furi t={item.c} /></div>
+          {m.n && <div className="gq-tip"><Furi t={m.n} /></div>}
           {q.kind !== 'fill' && (
             <>
-              <div className="gq-ex jp" lang="ja">{item.ex.j}</div>
+              <div className="gq-ex jp" lang="ja"><Furi t={item.ex.j} /></div>
               <div className="gq-exk">{item.ex.k}</div>
             </>
           )}
@@ -345,9 +371,9 @@ function Sheet({ q, item, pick, ok, placed, onNext }) {
                 <div key={c} className={`gq-opt ${c === q.answer ? 'right' : c === pick ? 'wrong' : ''}`}>
                   <i>{mark}</i>
                   {q.kind === 'mean' ? (
-                    <span><b className="jp" lang="ja">{g?.f || ''}</b> {c}</span>
+                    <span><b className="jp" lang="ja"><Furi t={g?.f || ''} /></b> {c}</span>
                   ) : (
-                    <span><b className="jp" lang="ja">{c}</b> {g?.m || ''}{g?.f && q.kind === 'fill' && !sameForm(c, g.f) ? <em className="jp" lang="ja"> ({g.f})</em> : null}</span>
+                    <span><b className="jp" lang="ja"><Furi t={c} /></b> {g?.m || ''}{g?.f && q.kind === 'fill' && !sameForm(c, g.f) ? <em className="jp" lang="ja"> (<Furi t={g.f} />)</em> : null}</span>
                   )}
                 </div>
               );
@@ -365,7 +391,7 @@ const sameForm = (c, f) => f.replace(/[～\s]/g, '') === c.replace(/\s/g, '');
 function StarText({ q, placed, reveal, onUnplace }) {
   return (
     <div className="gq-ask jp gq-star" lang="ja">
-      {q.pre}
+      <Furi t={q.pre} />
       {q.order.map((_, k) => {
         const p = placed[k];
         const right = reveal && p && p.t === q.order[k];
@@ -376,11 +402,11 @@ function StarText({ q, placed, reveal, onUnplace }) {
             disabled={!p || reveal}
             onClick={() => onUnplace(k)}
           >
-            {p ? p.t : '　'}
+            {p ? <Furi t={p.t} /> : '　'}
           </button>
         );
       })}
-      {q.post}
+      <Furi t={q.post} />
     </div>
   );
 }
@@ -389,8 +415,8 @@ function FillText({ s, fill }) {
   const parts = s.split('（　）');
   return parts.map((p, k) => (
     <span key={k}>
-      {p}
-      {k < parts.length - 1 && <span className={`gq-blank ${fill ? 'filled' : ''}`}>{fill ? fill.split(' / ')[k] ?? fill : '　　'}</span>}
+      <Furi t={p} />
+      {k < parts.length - 1 && <span className={`gq-blank ${fill ? 'filled' : ''}`}>{fill ? <Furi t={fill.split(' / ')[k] ?? fill} /> : '　　'}</span>}
     </span>
   ));
 }
@@ -421,18 +447,18 @@ function List({ cards, onBack, onPick }) {
               <div key={x.id} className={`gq-row ${open === x.id ? 'open' : ''}`}>
                 <button className="gq-row-h" onClick={() => setOpen(open === x.id ? null : x.id)}>
                   <i className={`gq-dot ${dot}`} />
-                  <b className="jp" lang="ja">{x.f}</b>
+                  <b className="jp" lang="ja"><Furi t={x.f} /></b>
                   <span>{x.m}</span>
                 </button>
                 {open === x.id && (
                   <div className="gq-note">
-                    <div className="gq-conn">접속 · {x.c}</div>
-                    {moreOf(x.id).n && <div className="gq-tip">{moreOf(x.id).n}</div>}
-                    <div className="gq-ex jp" lang="ja">{x.ex.j}</div>
+                    <div className="gq-conn">접속 · <Furi t={x.c} /></div>
+                    {moreOf(x.id).n && <div className="gq-tip"><Furi t={moreOf(x.id).n} /></div>}
+                    <div className="gq-ex jp" lang="ja"><Furi t={x.ex.j} /></div>
                     <div className="gq-exk">{x.ex.k}</div>
                     {sentences(x).slice(1).map((e) => (
                       <div key={e.full}>
-                        <div className="gq-ex jp" lang="ja">{e.full}</div>
+                        <div className="gq-ex jp" lang="ja"><Furi t={e.full} /></div>
                         <div className="gq-exk">{e.k}</div>
                       </div>
                     ))}
