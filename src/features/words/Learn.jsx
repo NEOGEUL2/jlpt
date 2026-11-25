@@ -6,6 +6,7 @@ import { todayStr } from '../../lib/dates';
 import { hasJa, speak } from '../../lib/speak';
 import { startTimer } from '../../lib/studylog';
 import { isKatakana, newToday, splitExample } from './words';
+import { logMiss } from './miss';
 import { BATCH, addConfused, answer, askReading, clean, finishKana, isFast, isLeech, learned, meaningChoices, needRead, newIds, reviewIds, sameReading, toKana, waitingInfo } from './learn';
 import { KIND_KO, radicalOf, readingKind } from './kanji';
 import { isLong, kanjiIndex, kanjiInfo, kanjiOf, longAt, longNote, onHint, readingParts, siblings, soundsOf } from './hanja';
@@ -187,6 +188,11 @@ export function Check({ w, pool, idx, cards, review, readMode, autoSpeak, onDone
   const finish = (good) => {
     if (sent.current) return;
     sent.current = true;
+    // 복습에서 틀린 단어 → 틀린 단어 모음 (내가 쓴 읽기·대신 고른 뜻의 단어도)
+    if (review && !ok) {
+      const other = picked && picked !== w.m ? pool.find((x) => x.m === picked && x.id !== w.id) : null;
+      logMiss(w, res.read === false ? 'read' : 'mean', { said: res.read === false ? finishKana(inputRef.current?.value ?? typed) : '', other });
+    }
     onDone(good, { fast: good && ok && isFast(w, ms.current), read: steps.includes('read') ? !!res.read : undefined });
   };
 

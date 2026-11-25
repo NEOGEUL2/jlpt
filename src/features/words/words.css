@@ -140,3 +140,12 @@
 .pr-side mark { background: none; color: var(--acc); font-weight: 700; }
 .pr-ex { font-size: 14px; }
 @media (max-width: 560px) { .pr-cmp { grid-template-columns: 1fr; } }
+
+/* 틀린 단어 모음 */
+.wd-miss { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.wd-miss li { display: grid; gap: 4px; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.wd-miss__w { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.wd-miss__w .wd-x { margin-left: auto; }
+.wd-miss__note { width: 100%; font-size: 14px; }
+.wd-miss__txt { width: 100%; min-height: 120px; font-size: 13px; }
+.wd-miss__m { font-size: 14px; }
