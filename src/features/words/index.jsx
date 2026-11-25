@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { remove, save, saveMany, useData } from '../../lib/store';
 import { EXAM_DATE, maturity, queue } from '../../lib/srs';
-import { diffDays, todayStr } from '../../lib/dates';
+import { addDays, diffDays, todayStr, ymd } from '../../lib/dates';
 import { startTimer } from '../../lib/studylog';
 import { BASE, LEVELS, ORDERS, allWords, hasKanji, idsInOrder, unsorted, newToday, parsePaste, quizPick, splitExample } from './words';
 import { trapText, yomiChoices, yomiOk } from './yomi';
@@ -13,6 +13,7 @@ import { LeechStudy, ReviewPlan, capOf } from './Leech';
 import { KanjiStudy } from './Kanji';
 import { PairDrill } from './Pairs';
 import { noGuess } from './groups';
+import { HOW, logMiss, missText, missesOn, undoMiss } from './miss';
 import './words.css';
 
 const NEW_OPTS = [20, 30, 50, 100, 150, 200];
@@ -66,6 +67,7 @@ export default function Words() {
   if (mode === 'quiz') return <Quiz onDone={done} />;
   if (mode === 'add') return <AddWords onDone={done} />;
   if (mode === 'list') return <WordList onDone={done} />;
+  if (mode === 'miss') return <MissList onDone={done} />;
   return <Home go={setMode} />;
 }
 
@@ -125,6 +127,8 @@ function Home({ go }) {
           <p className="sub wd-note">팁: 새 단어 순서를 '아는 한자부터'로 바꾸면 N3에서 본 한자로 된 N2·N1 단어가 먼저 나와요. 한국 한자음으로 소리를 짐작할 수 있어 덜 낯설어요.</p>
         )}
       </section>
+
+      <MissCard go={go} />
 
       <ReviewPlan cards={cards} prefs={prefs} onCap={(n) => setPrefs({ revCap: n })} go={go} />
 
@@ -278,12 +282,15 @@ function Sort({ onDone }) {
   };
   const pick = (k) => {
     if (!w || (k === 'mean' && !canMean)) return;
+    // 안다고 했는데 틀림 → 틀린 단어 모음에
+    const how = guess === 'know' && k === 'mean' ? 'sort-read' : guess === 'know' && k === 'no' ? 'sort-know' : guess === 'mean' && k === 'no' ? 'sort-mean' : null;
+    const miss = how ? logMiss(w, how) : null;
     setGuess(null);
     if (k === 'know') save('words', w.id, () => ({ skip: 1, t: today, d: '9999-12-31', i: 999, f: today }));
     else if (k === 'mean') save('words', w.id, () => meaningOnly(today));
     else save('words', w.id, { pri: 1 });
     timer.current?.add({ n: 1, ok: k === 'no' ? 0 : 1, learned: k === 'know' ? 1 : 0 });
-    setHist((h) => [...h, { w, k }]);
+    setHist((h) => [...h, { w, k, miss }]);
     setPos((p) => p + 1);
   };
   const undo = () => {
@@ -291,6 +298,7 @@ function Sort({ onDone }) {
     if (guess) return setGuess(null);
     if (!last) return;
     remove('words', last.w.id);
+    undoMiss(last.miss);
     setHist((h) => h.slice(0, -1));
     setPos((p) => p - 1);
   };
@@ -402,6 +410,7 @@ function Quiz({ onDone }) {
     timer.current?.add({ n: 1, ok: ok ? 1 : 0 });
     if (!ok) {
       setWrong((x) => [...x, it.w]);
+      logMiss(it.w, 'yomi', { said: c });
       // 틀린 단어는 오늘 카드에 다시 (본 적 없으면 새 카드로 둠)
       const c0 = cards[it.w.id];
       if (c0?.t && !c0.skip) save('words', it.w.id, { ...c0, d: today, i: Math.min(c0.i || 0, 1), l: (c0.l || 0) + 1 });
@@ -559,6 +568,88 @@ function WordList({ onDone }) {
           })}
         </ul>
         {list.length > n && <button type="button" className="btn" onClick={() => setN(n + 200)}>더 보기</button>}
+      </section>
+    </div>
+  );
+}
+
+/* ───────── 틀린 단어 모음 (miss.js) ─────────
+ 안다고 했는데 틀린 단어를 날짜마다. 복사해서 대화창에 붙여 넣으면 헷갈린 이유를 자세히 설명받을 수 있음 */
+async function copyText(t) {
+  try {
+    await navigator.clipboard.writeText(t);
+    return true;
+  } catch {
+    // 오래된 Safari 등: 숨은 글상자로
+    const a = document.createElement('textarea');
+    a.value = t;
+    document.body.appendChild(a);
+    a.select();
+    const ok = document.execCommand('copy');
+    a.remove();
+    return ok;
+  }
+}
+function MissCard({ go }) {
+  const all = useData('miss');
+  const today = todayStr();
+  const list = useMemo(() => missesOn(all, today), [all, today]);
+  const [msg, setMsg] = useState('');
+  const copy = async () => setMsg((await copyText(missText(list, today))) ? '복사했어요. 대화창에 붙여 넣어 주세요' : '복사가 안 됐어요. 목록 보기에서 길게 눌러 복사해 주세요');
+  return (
+    <section className="card">
+      <div className="wd-hd"><b>틀린 단어 모음</b><small className="num">오늘 {list.length}개</small></div>
+      <p className="sub">알아요라고 했는데 틀린 단어, 복습·읽기 퀴즈에서 틀린 단어가 저절로 모여요. 복사해서 대화창에 붙여 넣으면 왜 헷갈렸는지 자세히 설명해 드려요.</p>
+      <div className="row">
+        <button type="button" className="btn btn--pri" disabled={!list.length} onClick={copy}>오늘 틀린 단어 복사</button>
+        <button type="button" className="btn" onClick={() => go('miss')}>목록 보기</button>
+      </div>
+      {msg && <p className="sub" aria-live="polite">{msg}</p>}
+    </section>
+  );
+}
+function MissList({ onDone }) {
+  const all = useData('miss');
+  const today = todayStr();
+  const [span, setSpan] = useState(0); // 0 오늘 · 1 어제 · 7 최근 7일
+  const from = ymd(addDays(new Date(), -span));
+  const to = span === 1 ? from : today;
+  const list = useMemo(() => missesOn(all, from, to), [all, from, to]);
+  const label = span === 7 ? `${from}~${to}` : from;
+  const [msg, setMsg] = useState('');
+  const copy = async () => setMsg((await copyText(missText(list, label))) ? '복사했어요' : '복사가 안 됐어요. 아래 글을 길게 눌러 복사해 주세요');
+  return (
+    <div className="page wd">
+      <header className="wd-top"><button type="button" className="btn" onClick={() => onDone()}>‹ 단어</button><h1 className="h1">틀린 단어 모음</h1></header>
+      <section className="card">
+        <span className="seg">
+          {[[0, '오늘'], [1, '어제'], [7, '최근 7일']].map(([k, l]) => <button key={k} type="button" aria-pressed={span === k} onClick={() => { setSpan(k); setMsg(''); }}>{l}</button>)}
+        </span>
+        <div className="row">
+          <button type="button" className="btn btn--pri" disabled={!list.length} onClick={copy}>{list.length}개 복사</button>
+          {msg && <span className="sub" aria-live="polite">{msg}</span>}
+        </div>
+        <p className="sub">'내가 떠올린 것'에 그때 생각한 말을 적어 두면(예: 秘密 생각남) 설명이 더 정확해져요. 안 적어도 돼요.</p>
+        {!list.length && <p className="sub">아직 없어요.</p>}
+        <ul className="wd-miss">
+          {list.map((x) => (
+            <li key={x.id}>
+              <div className="wd-miss__w">
+                <b lang="ja">{x.w}</b>
+                {x.r !== x.w && <span lang="ja" className="sub">{x.r}</span>}
+                <span className="wd-miss__m">{x.m}</span>
+                <button type="button" className="wd-x" onClick={() => remove('miss', x.id)}>빼기</button>
+              </div>
+              <small className="sub">
+                {(x.how || []).map((h) => HOW[h] || h).join(' · ')}{x.n > 1 ? ` ×${x.n}` : ''}
+                {x.said?.length ? <> · 내 답 <span lang="ja">{x.said.join(', ')}</span></> : null}
+                {x.other?.length ? <> · 고른 말 <span lang="ja">{x.other.map((o) => o.w).join(', ')}</span></> : null}
+              </small>
+              <input className="wd-miss__note" defaultValue={x.note || ''} placeholder="내가 떠올린 것 (선택)" onBlur={(e) => { const v = e.target.value.trim(); if (v !== (x.note || '')) save('miss', x.id, { note: v }); }} />
+            </li>
+          ))}
+        </ul>
+        {list.length > 0 && <textarea className="wd-miss__txt" readOnly value={missText(list, label)} lang="ja" onFocus={(e) => e.target.select()} />}
       </section>
     </div>
   );

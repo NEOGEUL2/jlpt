@@ -62,3 +62,9 @@
 - 한자로 못 맞히는 말 `words/groups.js` `noGuess`(N2·N1·교재 중 훈독·湯桶·熟字訓·히라가나·가타카나 말) → 단어 첫 화면 버튼 → `Study`를 그 말들로만(복습도), 이번에 새 단어 20개
 - 비슷한 말 구별 `Pairs.jsx` + `confusablePairs`(배운 단어만: 헷갈렸던 짝 `cf` → 한국어 뜻 조각 겹치는 짝) · `pairQuiz`: 뜻 → 어느 말, 짝마다 앞 절반·뒤 절반에 떨어져 나옴, 저만 가진 뜻 조각이 있는 쪽만 물음. 답 뒤 두 말 나란히(다른 뜻 조각 굵게)
 - 테스트 `tests/yomi.test.js` · `tests/exam.test.js`
+
+## 틀린 단어 모음 (`words/miss.js`, 2026-11-25)
+- 안다고 했는데 틀린 단어를 저절로 모음: 거르기 알아요→틀림·뜻만 맞음 / 뜻만 알아요→틀림 · 복습(Check review) 틀림(내가 쓴 읽기 `said`, 대신 고른 뜻의 말 `other`) · 한자 읽기 퀴즈 틀림
+- 묶음 `miss`, id `날짜|단어 id`, `{ day, at, last, wid, w, r, m, lv, how[], said[], other[{w,r,m}], n, note }` → jlpt_data key='miss' 로 같이 올라감(새 SQL 없음). 거르기 되돌리기는 `undoMiss`
+- 화면: 단어 첫 화면 '틀린 단어 모음' 카드(오늘 복사) · mode 'miss' `MissList`(오늘·어제·7일, 메모 '내가 떠올린 것', 빼기). 복사 글 `missText` → 대화창에 붙여 넣어 설명받기
+- 서버에서 보기: `select value from jlpt_data where key='miss' and not value ? 'del' order by id desc;`
